@@ -25,7 +25,6 @@ plugins {
     id("org.springdoc.openapi-gradle-plugin") version "1.9.0"
     id("org.owasp.dependencycheck") version "11.0.0"
     id("com.github.spotbugs") version "6.4.8"
-    id("org.owasp.dependencycheck") version "11.0.0"
 }
 
 if (findProperty("aerospikeUseLocal")) {
@@ -144,12 +143,5 @@ spotbugsMain {
 spotbugsTest {
     reports {
         html.required = true
-dependencyCheck {
-    failBuildOnCVSS = 7.0
-    suppressionFile = file("${rootDir}/config/dependency-check-suppressions.xml")
-    // NVD API key (optional): request at https://nvd.nist.gov/developers/request-an-api-key
-    // Set NVD_API_KEY env var in CI (e.g. GitHub Actions secret) to speed up CVE updates
-    nvd {
-        apiKey = System.getenv("NVD_API_KEY") ?: null
     }
 }
