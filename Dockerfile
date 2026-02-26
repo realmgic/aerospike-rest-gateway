@@ -17,5 +17,12 @@ ARG DEPENDENCY=/workspace/app/build/dependency
 COPY --from=build ${DEPENDENCY}/META-INF /app/META-INF
 COPY --from=build ${DEPENDENCY}/BOOT-INF/lib /app/lib
 COPY --from=build ${DEPENDENCY}/BOOT-INF/classes /app
+
+RUN adduser --system --no-create-home --group appuser && chown -R appuser:appuser /app \
+    && apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
+USER appuser
+
 EXPOSE 8080
+HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
+  CMD curl -f http://localhost:8080/actuator/health/liveness || exit 1
 ENTRYPOINT ["java","-cp","app:app/lib/*","com.aerospike.restclient.AerospikeRestGatewayApplication"]

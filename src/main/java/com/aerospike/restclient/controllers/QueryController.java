@@ -36,6 +36,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.annotation.*;
@@ -85,7 +86,7 @@ public class QueryController {
             description = APIParamDescriptors.SET_NOTES, required = true
     ) @PathVariable(value = "set") String set,
                                           @Parameter(hidden = true) @RequestParam MultiValueMap<String, String> requestParams,
-                                          @RequestBody QueryRequestBody body,
+                                          @Valid @RequestBody QueryRequestBody body,
                                           @RequestHeader(value = "Authorization", required = false) String basicAuth) {
         QueryPolicy policy = RequestParamHandler.getQueryPolicy(requestParams.toSingleValueMap());
         AuthDetails authDetails = HeaderHandler.extractAuthDetails(basicAuth);
@@ -134,7 +135,7 @@ public class QueryController {
             description = APIParamDescriptors.NAMESPACE_NOTES, required = true
     ) @PathVariable(value = "namespace") String namespace,
                                           @Parameter(hidden = true) @RequestParam MultiValueMap<String, String> requestParams,
-                                          @RequestBody QueryRequestBody body,
+                                          @Valid @RequestBody QueryRequestBody body,
                                           @RequestHeader(value = "Authorization", required = false) String basicAuth) {
         QueryPolicy policy = RequestParamHandler.getQueryPolicy(requestParams.toSingleValueMap());
         AuthDetails authDetails = HeaderHandler.extractAuthDetails(basicAuth);
@@ -195,7 +196,7 @@ public class QueryController {
     ) @PathVariable(
             value = AerospikeAPIConstants.QUERY_PARTITION_COUNT
     ) int count, @Parameter(hidden = true) @RequestParam MultiValueMap<String, String> requestParams,
-                                          @RequestBody QueryRequestBody body,
+                                          @Valid @RequestBody QueryRequestBody body,
                                           @RequestHeader(value = "Authorization", required = false) String basicAuth) {
 
         QueryPolicy policy = RequestParamHandler.getQueryPolicy(requestParams.toSingleValueMap());
@@ -256,7 +257,7 @@ public class QueryController {
     ) @PathVariable(
             value = AerospikeAPIConstants.QUERY_PARTITION_COUNT
     ) int count, @Parameter(hidden = true) @RequestParam MultiValueMap<String, String> requestParams,
-                                          @RequestBody QueryRequestBody body,
+                                          @Valid @RequestBody QueryRequestBody body,
                                           @RequestHeader(value = "Authorization", required = false) String basicAuth) {
         QueryPolicy policy = RequestParamHandler.getQueryPolicy(requestParams.toSingleValueMap());
         AuthDetails authDetails = HeaderHandler.extractAuthDetails(basicAuth);
