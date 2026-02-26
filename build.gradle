@@ -39,6 +39,7 @@ apply plugin: "java"
 apply plugin: "eclipse"
 apply plugin: "org.springframework.boot"
 apply plugin: "io.spring.dependency-management"
+apply plugin: "jacoco"
 
 group = "com.aerospike"
 sourceCompatibility = 17
@@ -60,7 +61,36 @@ test {
     testLogging {
         events "passed", "skipped", "failed"
     }
+    finalizedBy jacocoTestReport
 }
+
+jacoco {
+    toolVersion = "0.8.11"
+}
+
+jacocoTestReport {
+    dependsOn test
+    reports {
+        xml.required = true
+        html.required = true
+    }
+}
+
+jacocoTestCoverageVerification {
+    dependsOn jacocoTestReport
+    violationRules {
+        rule {
+            limit {
+                counter = "LINE"
+                value = "COVEREDRATIO"
+                minimum = BigDecimal.valueOf(0.50)
+            }
+        }
+    }
+}
+
+check.dependsOn jacocoTestCoverageVerification
+
 springBoot {
     buildInfo()
 }
@@ -88,8 +118,8 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-actuator:${springBootVersion}")
     implementation('io.github.resilience4j:resilience4j-micrometer:2.2.0')
     implementation('io.micrometer:micrometer-registry-prometheus')
-    testImplementation("junit:junit:4.13.2")
     testImplementation("org.springframework.boot:spring-boot-starter-test:${springBootVersion}")
+    testRuntimeOnly("org.junit.vintage:junit-vintage-engine")
 }
 
 compileJava {
