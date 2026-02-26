@@ -15,7 +15,7 @@ package: clean validatedocs build
 
 .PHONY: build
 build:
-	./gradlew build -x test
+	./gradlew build
 
 .PHONY: image
 image:
