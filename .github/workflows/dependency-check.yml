@@ -38,5 +38,8 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-dependency-check-
 
+      # Optional: add NVD_API_KEY repo secret (https://nvd.nist.gov/developers/request-an-api-key) to speed up CVE updates
       - name: Run OWASP Dependency-Check
+        env:
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
         run: ./gradlew dependencyCheckAnalyze --no-daemon
