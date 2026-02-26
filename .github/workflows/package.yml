@@ -23,6 +23,10 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: 17
+      - name: Set up Aerospike Database
+        uses: reugn/github-action-aerospike@v1
+        with:
+          server-version: 7.0.0.9
       - name: Install npm
         run: sudo apt-get install npm && npm install -g swagger-cli
       - name: Cache Gradle packages
