@@ -1,0 +1,67 @@
+# Example Kubernetes Deployment for Aerospike REST Gateway
+# Adjust image, replicas, and env to your environment.
+# Requires Aerospike cluster to be reachable (e.g. aerospike-namespace or external host).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aerospike-rest-gateway
+  labels:
+    app: aerospike-rest-gateway
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: aerospike-rest-gateway
+  template:
+    metadata:
+      labels:
+        app: aerospike-rest-gateway
+    spec:
+      containers:
+        - name: gateway
+          image: aerospike-rest-gateway:latest
+          ports:
+            - containerPort: 8080
+          env:
+            - name: aerospike.restclient.hostname
+              valueFrom:
+                configMapKeyRef:
+                  name: aerospike-rest-gateway-config
+                  key: aerospike.hostname
+            - name: aerospike.restclient.port
+              valueFrom:
+                configMapKeyRef:
+                  name: aerospike-rest-gateway-config
+                  key: aerospike.port
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8080
+            initialDelaySeconds: 40
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: aerospike-rest-gateway
+spec:
+  selector:
+    app: aerospike-rest-gateway
+  ports:
+    - port: 80
+      targetPort: 8080
+  type: ClusterIP
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: aerospike-rest-gateway-config
+data:
+  aerospike.hostname: "aerospike"
+  aerospike.port: "3000"

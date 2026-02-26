@@ -1,0 +1,29 @@
+# Local development: Aerospike + REST Gateway
+# Usage: docker compose up --build
+# Gateway: http://localhost:8080  (Swagger: http://localhost:8080/swagger-ui.html)
+# Aerospike: localhost:3000 (from host) or aerospike:3000 (from gateway container)
+
+services:
+  aerospike:
+    image: aerospike/aerospike-server:7.0.0.9
+    ports:
+      - "3000:3000"
+    environment:
+      - NAMESPACE=test
+    healthcheck:
+      test: ["CMD", "asadm", "-e", "info", "-h", "localhost"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 15s
+
+  gateway:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      - aerospike.restclient.hostname=aerospike
+      - aerospike.restclient.port=3000
+    depends_on:
+      aerospike:
+        condition: service_healthy
