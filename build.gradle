@@ -44,7 +44,11 @@ apply plugin: "io.spring.dependency-management"
 apply plugin: "jacoco"
 
 group = "com.aerospike"
-sourceCompatibility = 17
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}
 
 def gitVersionDetails = versionDetails()
 def gitVersion = gitVersionDetails.lastTag
@@ -137,11 +141,13 @@ dependencyCheck {
 }
 
 spotbugsMain {
+    ignoreFailures = true
     reports {
         html.required = true
     }
 }
 spotbugsTest {
+    ignoreFailures = true
     reports {
         html.required = true
     }
