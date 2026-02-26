@@ -128,6 +128,10 @@ If utilizing TLS, the `aerospike.restclient.hostlist` variable should be set to 
 * `aerospike.restclient.ssl.allowedciphers` An optional comma separated list of ciphers that are permitted to be used in communication with Aerospike. Available cipher names can be obtained by `SSLSocket.getSupportedCipherSuites()`.
 * `aerospike.restclient.ssl.allowedprotocols` An optional comma separated list of protocols that are permitted to be used in communication with Aerospike. Available values can be acquired using `SSLSocket.getSupportedProtocols()`. By Default only `TLSv1.2` is allowed.
 
+## Production and observability
+
+For health checks, metrics (Prometheus), and production configuration, see [Production and Observability](production-and-observability.md).
+
 ## Verifying installation
 
 *Note:* The following steps assume REST Gateway's base path is `http://localhost:8080/`.

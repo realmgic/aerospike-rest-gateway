@@ -33,6 +33,7 @@
  */
 package com.aerospike.restclient.config;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.converter.ByteArrayHttpMessageConverter;
 import org.springframework.http.converter.HttpMessageConverter;
@@ -44,6 +45,15 @@ import java.util.List;
 
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
+
+    @Value("${aerospike.restclient.cors.allowed-origins:*}")
+    private String corsAllowedOrigins;
+
+    @Value("${aerospike.restclient.cors.allowed-methods:*}")
+    private String corsAllowedMethods;
+
+    @Value("${aerospike.restclient.cors.allowed-headers:*}")
+    private String corsAllowedHeaders;
 
     @Override
     public void configureMessageConverters(List<HttpMessageConverter<?>> converters) {
@@ -59,7 +69,17 @@ public class WebConfig implements WebMvcConfigurer {
 
     @Override
     public void addCorsMappings(CorsRegistry registry) {
-        registry.addMapping("/**").allowedOrigins("*").allowedMethods("*").allowedHeaders("*");
+        registry.addMapping("/**")
+                .allowedOriginPatterns(splitCors(corsAllowedOrigins))
+                .allowedMethods(splitCors(corsAllowedMethods))
+                .allowedHeaders(splitCors(corsAllowedHeaders));
+    }
+
+    private static String[] splitCors(String value) {
+        if (value == null || value.trim().isEmpty()) {
+            return new String[]{};
+        }
+        return value.split("\\s*,\\s*");
     }
 }
 

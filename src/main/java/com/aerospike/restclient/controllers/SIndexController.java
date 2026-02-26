@@ -42,6 +42,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
+import jakarta.validation.Valid;
 import java.util.List;
 import java.util.Map;
 
@@ -118,7 +119,7 @@ public class SIndexController {
             consumes = {"application/json", "application/msgpack"},
             produces = {"application/json", "application/msgpack"}
     )
-    public void createIndex(@RequestBody RestClientIndex indexModel,
+    public void createIndex(@Valid @RequestBody RestClientIndex indexModel,
                             @Parameter(hidden = true) @RequestParam Map<String, String> policyMap,
                             @RequestHeader(value = "Authorization", required = false) String basicAuth) {
 
