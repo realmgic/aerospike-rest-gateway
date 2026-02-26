@@ -12,6 +12,16 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: 17
+          distribution: 'temurin'
+      - name: Set up Aerospike Database
+        uses: reugn/github-action-aerospike@v1
+        with:
+          server-version: 7.0.0.9
+      - name: Run tests
+        run: ./gradlew clean test --stacktrace
       - name: Build x86 Image
-        run:
-          make image
+        run: make image

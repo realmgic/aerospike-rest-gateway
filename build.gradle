@@ -23,6 +23,7 @@ plugins {
     id("application")
     id('com.palantir.git-version') version "3.1.0"
     id("org.springdoc.openapi-gradle-plugin") version "1.9.0"
+    id("org.owasp.dependencycheck") version "11.0.0"
 }
 
 if (findProperty("aerospikeUseLocal")) {
@@ -94,4 +95,14 @@ dependencies {
 
 compileJava {
     options.compilerArgs << '-parameters'
+}
+
+dependencyCheck {
+    failBuildOnCVSS = 7.0
+    suppressionFile = file("${rootDir}/config/dependency-check-suppressions.xml")
+    // NVD API key (optional): request at https://nvd.nist.gov/developers/request-an-api-key
+    // Set NVD_API_KEY env var in CI (e.g. GitHub Actions secret) to speed up CVE updates
+    nvd {
+        apiKey = System.getenv("NVD_API_KEY") ?: null
+    }
 }
