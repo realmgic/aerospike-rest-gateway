@@ -23,7 +23,8 @@ plugins {
     id("application")
     id('com.palantir.git-version') version "3.1.0"
     id("org.springdoc.openapi-gradle-plugin") version "1.9.0"
-    id("org.owasp.dependencycheck") version "11.0.0"
+    id("org.owasp.dependencycheck") version "12.2.0"
+    id("com.github.spotbugs") version "6.4.8"
 }
 
 if (findProperty("aerospikeUseLocal")) {
@@ -43,7 +44,11 @@ apply plugin: "io.spring.dependency-management"
 apply plugin: "jacoco"
 
 group = "com.aerospike"
-sourceCompatibility = 17
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}
 
 def gitVersionDetails = versionDetails()
 def gitVersion = gitVersionDetails.lastTag
@@ -120,6 +125,7 @@ dependencies {
     implementation('io.github.resilience4j:resilience4j-micrometer:2.2.0')
     implementation('io.micrometer:micrometer-registry-prometheus')
     testImplementation("org.springframework.boot:spring-boot-starter-test:${springBootVersion}")
+    testImplementation("junit:junit:4.13.2")
     testRuntimeOnly("org.junit.vintage:junit-vintage-engine")
 }
 
@@ -129,10 +135,23 @@ compileJava {
 
 dependencyCheck {
     failBuildOnCVSS = 7.0
-    suppressionFile = file("${rootDir}/config/dependency-check-suppressions.xml")
-    // NVD API key (optional): request at https://nvd.nist.gov/developers/request-an-api-key
-    // Set NVD_API_KEY env var in CI (e.g. GitHub Actions secret) to speed up CVE updates
-    nvd {
-        apiKey = System.getenv("NVD_API_KEY") ?: null
+    failOnError = false  // do not fail build when NVD API is unreachable or returns errors (e.g. null response)
+    suppressionFile = "${rootDir}/config/dependency-check-suppressions.xml"
+    def nvdKey = System.getenv("NVD_API_KEY") ?: System.getProperty("NVD_API_KEY")
+    if (nvdKey?.trim()) {
+        nvd.apiKey = nvdKey.trim()
+    }
+}
+
+spotbugsMain {
+    ignoreFailures = true
+    reports {
+        html.required = true
+    }
+}
+spotbugsTest {
+    ignoreFailures = true
+    reports {
+        html.required = true
     }
 }

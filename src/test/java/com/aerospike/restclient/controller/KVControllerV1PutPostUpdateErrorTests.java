@@ -28,7 +28,7 @@ import org.mockito.Mockito;
 import org.msgpack.jackson.dataformat.MessagePackFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.junit4.SpringRunner;
 
 import java.io.ByteArrayInputStream;
@@ -56,7 +56,7 @@ import static org.mockito.ArgumentMatchers.*;
 
     @Autowired
     KeyValueController controller;
-    @MockBean
+    @MockitoBean
     AerospikeRecordService recordService;
 
     @SuppressWarnings("unchecked")

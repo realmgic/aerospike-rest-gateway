@@ -30,7 +30,7 @@ import org.junit.runner.RunWith;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
@@ -51,7 +51,7 @@ public class KVControllerGetRecordTests {
 
     @Autowired
     KeyValueController controller;
-    @MockBean
+    @MockitoBean
     AerospikeRecordService recordService;
 
     private final AerospikeException expectedException = new AerospikeException("test exception");
