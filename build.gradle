@@ -135,9 +135,12 @@ compileJava {
 
 dependencyCheck {
     failBuildOnCVSS = 7.0
+    failOnError = false  // do not fail build when NVD API is unreachable or returns errors (e.g. null response)
     suppressionFile = file("${rootDir}/config/dependency-check-suppressions.xml")
-    // Optional: set NVD_API_KEY env (e.g. GitHub Actions secret) to speed up CVE updates
-    nvd.apiKey = System.getenv("NVD_API_KEY")
+    def nvdKey = System.getenv("NVD_API_KEY") ?: System.getProperty("NVD_API_KEY")
+    if (nvdKey?.trim()) {
+        nvd.apiKey = nvdKey.trim()
+    }
 }
 
 spotbugsMain {
