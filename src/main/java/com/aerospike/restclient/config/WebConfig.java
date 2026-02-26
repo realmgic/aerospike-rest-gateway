@@ -70,9 +70,24 @@ public class WebConfig implements WebMvcConfigurer {
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/**")
-                .allowedOriginPatterns(splitCors(corsAllowedOrigins))
+                .allowedOriginPatterns(toOriginPatterns(splitCors(corsAllowedOrigins)))
                 .allowedMethods(splitCors(corsAllowedMethods))
                 .allowedHeaders(splitCors(corsAllowedHeaders));
+    }
+
+    /**
+     * Maps origin values to patterns for allowedOriginPatterns. The literal "*" (allow all)
+     * is converted to ".*" so it matches any origin when interpreted as a pattern.
+     */
+    private static String[] toOriginPatterns(String[] origins) {
+        if (origins == null || origins.length == 0) {
+            return origins;
+        }
+        String[] patterns = new String[origins.length];
+        for (int i = 0; i < origins.length; i++) {
+            patterns[i] = "*".equals(origins[i].trim()) ? ".*" : origins[i].trim();
+        }
+        return patterns;
     }
 
     private static String[] splitCors(String value) {
