@@ -391,8 +391,6 @@ public class ASTestUtils {
             while (attempts > 0) {
                 String response = Info.request(null, node, "sindex/" + namespace + "/" + indexName);
                 
-                System.out.println("response: " + response.trim() + "**");
-
                 if (response.trim().startsWith("FAIL:201") || response.trim().startsWith("ERROR:201")) {
                     try {
                         Thread.sleep(250);
