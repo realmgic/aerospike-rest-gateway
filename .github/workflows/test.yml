@@ -34,7 +34,19 @@ jobs:
             ${{ runner.os }}-gradle-
 
       - name: Build & Test with Gradle
-        run: ./gradlew clean test --stacktrace --info
+        run: |
+          ./gradlew clean test --stacktrace --info 2>&1 | tee build.log
+          exit ${PIPESTATUS[0]}
+
+      - name: Upload build reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-reports-${{ github.run_id }}
+          path: |
+            build.log
+            build/reports/
+          if-no-files-found: ignore
 
       - name: Cleanup Gradle Cache
         # Remove some files from the Gradle cache, so they aren't cached by GitHub Actions.
