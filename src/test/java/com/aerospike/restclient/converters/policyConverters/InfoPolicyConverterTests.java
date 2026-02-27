@@ -19,9 +19,9 @@ package com.aerospike.restclient.converters.policyConverters;
 import com.aerospike.client.policy.InfoPolicy;
 import com.aerospike.restclient.util.AerospikeAPIConstants;
 import com.aerospike.restclient.util.converters.policyconverters.InfoPolicyConverter;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -30,7 +30,7 @@ public class InfoPolicyConverterTests {
 
     Map<String, String> policyMap;
 
-    @Before
+    @BeforeEach
     public void setup() {
         policyMap = new HashMap<String, String>();
     }
@@ -39,7 +39,7 @@ public class InfoPolicyConverterTests {
     public void testTimeout() {
         policyMap.put(AerospikeAPIConstants.TIMEOUT, "333");
         InfoPolicy policy = InfoPolicyConverter.policyFromMap(policyMap);
-        Assert.assertEquals(policy.timeout, 333);
+        Assertions.assertEquals(policy.timeout, 333);
     }
 
 }

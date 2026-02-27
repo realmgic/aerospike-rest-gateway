@@ -20,12 +20,14 @@ import com.aerospike.client.AerospikeClient;
 import com.aerospike.client.Bin;
 import com.aerospike.client.Key;
 import com.aerospike.restclient.domain.RestClientRecord;
-import org.junit.*;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Assumptions;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.mock.web.MockHttpServletResponse;
-import org.springframework.test.context.junit4.rules.SpringClassRule;
-import org.springframework.test.context.junit4.rules.SpringMethodRule;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
@@ -35,12 +37,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest
 public class AuthenticationTest {
-
-    @ClassRule
-    public static final SpringClassRule springClassRule = new SpringClassRule();
-
-    @Rule
-    public final SpringMethodRule springMethodRule = new SpringMethodRule();
 
     private MockMvc mockMVC;
 
@@ -61,14 +57,14 @@ public class AuthenticationTest {
     private final String invalidAuthHeader = "Basic dXNlcjE6MTIzNA==";
     private final String validAuthHeader = "Basic Og==";
 
-    @Before
+    @BeforeEach
     public void setup() {
         mockMVC = MockMvcBuilders.webAppContextSetup(wac).build();
         Bin bin = new Bin("binAuth", 1);
         client.add(null, recordKey, bin);
     }
 
-    @After
+    @AfterEach
     public void clean() {
         client.delete(null, recordKey);
     }
@@ -80,7 +76,7 @@ public class AuthenticationTest {
 
     @Test
     public void testValidUserAuthentication() throws Exception {
-        Assume.assumeFalse(ClusterUtils.isSecurityEnabled(client));
+        Assumptions.assumeFalse(ClusterUtils.isSecurityEnabled(client));
 
         MockHttpServletResponse response = mockMVC.perform(get(testEndpoint).header("Authorization", validAuthHeader))
                 .andExpect(status().isOk())
@@ -88,12 +84,12 @@ public class AuthenticationTest {
                 .getResponse();
 
         RestClientRecord record = new JSONResponseDeserializer().getResponse(response, RestClientRecord.class);
-        Assert.assertEquals((int) record.bins.get("binAuth"), 1);
+        Assertions.assertEquals((int) record.bins.get("binAuth"), 1);
     }
 
     @Test
     public void testInvalidUserAuthentication() throws Exception {
-        Assume.assumeTrue(ClusterUtils.isSecurityEnabled(client));
+        Assumptions.assumeTrue(ClusterUtils.isSecurityEnabled(client));
 
         mockMVC.perform(get(testEndpoint).header("Authorization", invalidAuthHeader))
                 .andExpect(status().isInternalServerError());

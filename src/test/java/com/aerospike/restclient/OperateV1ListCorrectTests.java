@@ -22,32 +22,28 @@ import com.aerospike.client.Key;
 import com.aerospike.client.cdt.ListOrder;
 import com.aerospike.client.cdt.ListWriteFlags;
 import com.aerospike.restclient.util.AerospikeOperation;
-import org.junit.*;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameters;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Assumptions;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.junit4.rules.SpringClassRule;
-import org.springframework.test.context.junit4.rules.SpringMethodRule;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.*;
+import java.util.stream.Stream;
 
 import static com.aerospike.restclient.util.AerospikeAPIConstants.OPERATION_FIELD;
 import static com.aerospike.restclient.util.AerospikeAPIConstants.OPERATION_VALUES_FIELD;
 
-@RunWith(Parameterized.class)
 @SpringBootTest
 @AutoConfigureMockMvc
 public class OperateV1ListCorrectTests {
-
-    @ClassRule
-    public static final SpringClassRule springClassRule = new SpringClassRule();
-
-    @Rule
-    public final SpringMethodRule springMethodRule = new SpringMethodRule();
 
     @Autowired
     private MockMvc mockMVC;
@@ -57,12 +53,26 @@ public class OperateV1ListCorrectTests {
 
     List<Object> objectList;
     List<Object> objectMapList;
-    private final Key testKey;
-    private final String testEndpoint;
 
-    @Before
+    public static Stream<Arguments> getParams() {
+        return Stream.of(
+                Arguments.of(new JSONOperationV1Performer(), true),
+                Arguments.of(new MsgPackOperationV1Performer(), true),
+                Arguments.of(new JSONOperationV1Performer(), false),
+                Arguments.of(new MsgPackOperationV1Performer(), false)
+        );
+    }
+
+    private static Key keyFor(boolean useSet) {
+        return useSet ? new Key("test", "junit", "listop") : new Key("test", null, "listop");
+    }
+
+    private static String endpointFor(boolean useSet) {
+        return useSet ? ASTestUtils.buildEndpointV1("operate", "test", "junit", "listop") : ASTestUtils.buildEndpointV1("operate", "test", "listop");
+    }
+
+    @BeforeEach
     public void setup() {
-        Bin strBin = new Bin("str", "bin");
         objectList = new ArrayList<>();
         objectList.add(1L);
         objectList.add(2L);
@@ -77,43 +87,16 @@ public class OperateV1ListCorrectTests {
 
         objectMapList = new ArrayList<>();
         objectMapList.add(mapValue);
-
-        Bin listBin = new Bin("list", objectList);
-        Bin mapBin = new Bin("map", objectMapList);
-        client.put(null, testKey, strBin, listBin, mapBin);
     }
 
-    @After
-    public void clean() {
-        client.delete(null, testKey);
-    }
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testListAppend(OperationV1Performer opPerformer, boolean useSet) {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+            client.put(null, testKey, new Bin("str", "bin"), new Bin("list", objectList), new Bin("map", objectMapList));
 
-    private final OperationV1Performer opPerformer;
-
-    @Parameters
-    public static Object[][] getParams() {
-        return new Object[][]{
-                {new JSONOperationV1Performer(), true},
-                {new MsgPackOperationV1Performer(), true},
-                {new JSONOperationV1Performer(), false},
-                {new MsgPackOperationV1Performer(), false}
-        };
-    }
-
-    /* Set up the correct msgpack/json performer for this set of runs. Also decided whether to use the endpoint with a set or without */
-    public OperateV1ListCorrectTests(OperationV1Performer performer, boolean useSet) {
-        this.opPerformer = performer;
-        if (useSet) {
-            testKey = new Key("test", "junit", "listop");
-            testEndpoint = ASTestUtils.buildEndpointV1("operate", "test", "junit", "listop");
-        } else {
-            testKey = new Key("test", null, "listop");
-            testEndpoint = ASTestUtils.buildEndpointV1("operate", "test", "listop");
-        }
-    }
-
-    @Test
-    public void testListAppend() {
         List<Map<String, Object>> opList = new ArrayList<>();
         Map<String, Object> opMap = new HashMap<>();
         Map<String, Object> opValues = new HashMap<>();
@@ -129,11 +112,20 @@ public class OperateV1ListCorrectTests {
                 "list");
         objectList.add("aerospike");
 
-        Assert.assertTrue(ASTestUtils.compareCollection(objectList, realList));
+        Assertions.assertTrue(ASTestUtils.compareCollection(objectList, realList));
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
-    @Test
-    public void testListAppendItems() {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testListAppendItems(OperationV1Performer opPerformer, boolean useSet) {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+            client.put(null, testKey, new Bin("str", "bin"), new Bin("list", objectList), new Bin("map", objectMapList));
+
         List<Map<String, Object>> opList = new ArrayList<>();
         Map<String, Object> opMap = new HashMap<>();
         Map<String, Object> opValues = new HashMap<>();
@@ -153,12 +145,20 @@ public class OperateV1ListCorrectTests {
         objectList.add("spike");
         objectList.add("aero");
 
-        Assert.assertTrue(ASTestUtils.compareCollection(objectList, realList));
+        Assertions.assertTrue(ASTestUtils.compareCollection(objectList, realList));
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
-    @Test
-    public void testListAppendItemsWithPolicy() {
-        Assume.assumeTrue(ASTestUtils.supportsNewCDT(client));
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testListAppendItemsWithPolicy(OperationV1Performer opPerformer, boolean useSet) {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+            client.put(null, testKey, new Bin("str", "bin"), new Bin("list", objectList), new Bin("map", objectMapList));
+         Assumptions.assumeTrue(ASTestUtils.supportsNewCDT(client));
 
         List<Map<String, Object>> opList = new ArrayList<>();
         Map<String, Object> opMap = new HashMap<>();
@@ -181,11 +181,19 @@ public class OperateV1ListCorrectTests {
         objectList.add("aero");
         objectList.add("spike");
 
-        Assert.assertTrue(ASTestUtils.compareCollection(objectList, realList));
+        Assertions.assertTrue(ASTestUtils.compareCollection(objectList, realList));
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
-    @Test
-    public void testListClear() {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testListClear(OperationV1Performer opPerformer, boolean useSet) {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+            client.put(null, testKey, new Bin("str", "bin"), new Bin("list", objectList), new Bin("map", objectMapList));
         List<Map<String, Object>> opList = new ArrayList<>();
         Map<String, Object> opMap = new HashMap<>();
         Map<String, Object> opValues = new HashMap<>();
@@ -201,11 +209,19 @@ public class OperateV1ListCorrectTests {
         @SuppressWarnings("unchecked") List<Object> realList = (List<Object>) client.get(null, testKey).bins.get(
                 "list");
 
-        Assert.assertEquals(realList.size(), 0);
+        Assertions.assertEquals(realList.size(), 0);
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
-    @Test
-    public void testListGet() {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testListGet(OperationV1Performer opPerformer, boolean useSet) {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+            client.put(null, testKey, new Bin("str", "bin"), new Bin("list", objectList), new Bin("map", objectMapList));
         List<Map<String, Object>> opList = new ArrayList<>();
         Map<String, Object> opMap = new HashMap<>();
         Map<String, Object> opValues = new HashMap<>();
@@ -220,12 +236,20 @@ public class OperateV1ListCorrectTests {
         Map<String, Object> binsObject = getReturnedBins(
                 opPerformer.performOperationsAndReturn(mockMVC, testEndpoint, opList));
 
-        Assert.assertTrue(ASTestUtils.compareSimpleValues(binsObject.get("list"), objectList.get(2)));
+        Assertions.assertTrue(ASTestUtils.compareSimpleValues(binsObject.get("list"), objectList.get(2)));
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
-    @Test
-    public void testListGetByIndexIndex() {
-        Assume.assumeTrue(ASTestUtils.supportsNewCDT(client));
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testListGetByIndexIndex(OperationV1Performer opPerformer, boolean useSet) {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+            client.put(null, testKey, new Bin("str", "bin"), new Bin("list", objectList), new Bin("map", objectMapList));
+         Assumptions.assumeTrue(ASTestUtils.supportsNewCDT(client));
         List<Map<String, Object>> opList = new ArrayList<>();
         Map<String, Object> opMap = new HashMap<>();
         Map<String, Object> opValues = new HashMap<>();
@@ -240,12 +264,20 @@ public class OperateV1ListCorrectTests {
         Map<String, Object> binsObject = getReturnedBins(
                 opPerformer.performOperationsAndReturn(mockMVC, testEndpoint, opList));
 
-        Assert.assertTrue(ASTestUtils.compareSimpleValues(binsObject.get("list"), 2));
+        Assertions.assertTrue(ASTestUtils.compareSimpleValues(binsObject.get("list"), 2));
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
-    @Test
-    public void testListGetByIndexReverseRank() {
-        Assume.assumeTrue(ASTestUtils.supportsNewCDT(client));
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testListGetByIndexReverseRank(OperationV1Performer opPerformer, boolean useSet) {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+            client.put(null, testKey, new Bin("str", "bin"), new Bin("list", objectList), new Bin("map", objectMapList));
+         Assumptions.assumeTrue(ASTestUtils.supportsNewCDT(client));
 
         List<Map<String, Object>> opList = new ArrayList<>();
         Map<String, Object> opMap = new HashMap<>();
@@ -261,13 +293,21 @@ public class OperateV1ListCorrectTests {
         Map<String, Object> binsObject = getReturnedBins(
                 opPerformer.performOperationsAndReturn(mockMVC, testEndpoint, opList));
 
-        Assert.assertTrue(ASTestUtils.compareSimpleValues(binsObject.get("list"), 4));
+        Assertions.assertTrue(ASTestUtils.compareSimpleValues(binsObject.get("list"), 4));
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
     @SuppressWarnings("unchecked")
-    @Test
-    public void testListGetByIndexRange() {
-        Assume.assumeTrue(ASTestUtils.supportsNewCDT(client));
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testListGetByIndexRange(OperationV1Performer opPerformer, boolean useSet) {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+            client.put(null, testKey, new Bin("str", "bin"), new Bin("list", objectList), new Bin("map", objectMapList));
+         Assumptions.assumeTrue(ASTestUtils.supportsNewCDT(client));
         List<Map<String, Object>> opList = new ArrayList<>();
         Map<String, Object> opMap = new HashMap<>();
         Map<String, Object> opValues = new HashMap<>();
@@ -285,13 +325,21 @@ public class OperateV1ListCorrectTests {
                 opPerformer.performOperationsAndReturn(mockMVC, testEndpoint, opList));
 
         List<Object> retItems = (List<Object>) binsObject.get("list");
-        Assert.assertTrue(ASTestUtils.compareCollection(retItems, Arrays.asList(2, 0, 3)));
+        Assertions.assertTrue(ASTestUtils.compareCollection(retItems, Arrays.asList(2, 0, 3)));
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
     @SuppressWarnings("unchecked")
-    @Test
-    public void testListGetByIndexRangeNoCount() {
-        Assume.assumeTrue(ASTestUtils.supportsNewCDT(client));
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testListGetByIndexRangeNoCount(OperationV1Performer opPerformer, boolean useSet) {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+            client.put(null, testKey, new Bin("str", "bin"), new Bin("list", objectList), new Bin("map", objectMapList));
+         Assumptions.assumeTrue(ASTestUtils.supportsNewCDT(client));
         List<Map<String, Object>> opList = new ArrayList<>();
         Map<String, Object> opMap = new HashMap<>();
         Map<String, Object> opValues = new HashMap<>();
@@ -308,12 +356,20 @@ public class OperateV1ListCorrectTests {
                 opPerformer.performOperationsAndReturn(mockMVC, testEndpoint, opList));
 
         List<Object> retItems = (List<Object>) binsObject.get("list");
-        Assert.assertTrue(ASTestUtils.compareCollection(retItems, Arrays.asList(2, 0, 3, 4)));
+        Assertions.assertTrue(ASTestUtils.compareCollection(retItems, Arrays.asList(2, 0, 3, 4)));
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
-    @Test
-    public void testListGetByRankValue() {
-        Assume.assumeTrue(ASTestUtils.supportsNewCDT(client));
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testListGetByRankValue(OperationV1Performer opPerformer, boolean useSet) {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+            client.put(null, testKey, new Bin("str", "bin"), new Bin("list", objectList), new Bin("map", objectMapList));
+         Assumptions.assumeTrue(ASTestUtils.supportsNewCDT(client));
 
         List<Map<String, Object>> opList = new ArrayList<>();
         Map<String, Object> opMap = new HashMap<>();
@@ -330,12 +386,20 @@ public class OperateV1ListCorrectTests {
         Map<String, Object> binsObject = getReturnedBins(
                 opPerformer.performOperationsAndReturn(mockMVC, testEndpoint, opList));
 
-        Assert.assertTrue(ASTestUtils.compareSimpleValues(binsObject.get("list"), 2));
+        Assertions.assertTrue(ASTestUtils.compareSimpleValues(binsObject.get("list"), 2));
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
-    @Test
-    public void testListGetByRankIndex() {
-        Assume.assumeTrue(ASTestUtils.supportsNewCDT(client));
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testListGetByRankIndex(OperationV1Performer opPerformer, boolean useSet) {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+            client.put(null, testKey, new Bin("str", "bin"), new Bin("list", objectList), new Bin("map", objectMapList));
+         Assumptions.assumeTrue(ASTestUtils.supportsNewCDT(client));
 
         List<Map<String, Object>> opList = new ArrayList<>();
         Map<String, Object> opMap = new HashMap<>();
@@ -352,12 +416,20 @@ public class OperateV1ListCorrectTests {
         Map<String, Object> binsObject = getReturnedBins(
                 opPerformer.performOperationsAndReturn(mockMVC, testEndpoint, opList));
 
-        Assert.assertTrue(ASTestUtils.compareSimpleValues(binsObject.get("list"), 1));
+        Assertions.assertTrue(ASTestUtils.compareSimpleValues(binsObject.get("list"), 1));
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
-    @Test
-    public void testListGetByRankRange() {
-        Assume.assumeTrue(ASTestUtils.supportsNewCDT(client));
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testListGetByRankRange(OperationV1Performer opPerformer, boolean useSet) {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+            client.put(null, testKey, new Bin("str", "bin"), new Bin("list", objectList), new Bin("map", objectMapList));
+         Assumptions.assumeTrue(ASTestUtils.supportsNewCDT(client));
 
         List<Map<String, Object>> opList = new ArrayList<>();
         Map<String, Object> opMap = new HashMap<>();
@@ -379,12 +451,20 @@ public class OperateV1ListCorrectTests {
 
         Set<Object> retItemSet = new HashSet<>(retItems);
         Set<Object> expectedSet = new HashSet<>(Arrays.asList(1, 2, 3));
-        Assert.assertEquals(retItemSet, expectedSet);
+        Assertions.assertEquals(retItemSet, expectedSet);
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
-    @Test
-    public void testListGetByRankRangeNoCount() {
-        Assume.assumeTrue(ASTestUtils.supportsNewCDT(client));
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testListGetByRankRangeNoCount(OperationV1Performer opPerformer, boolean useSet) {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+            client.put(null, testKey, new Bin("str", "bin"), new Bin("list", objectList), new Bin("map", objectMapList));
+         Assumptions.assumeTrue(ASTestUtils.supportsNewCDT(client));
 
         List<Map<String, Object>> opList = new ArrayList<>();
         Map<String, Object> opMap = new HashMap<>();
@@ -405,12 +485,20 @@ public class OperateV1ListCorrectTests {
 
         Set<Object> retItemSet = new HashSet<>(retItems);
         Set<Object> expectedSet = new HashSet<>(Arrays.asList(1, 2, 3, 4));
-        Assert.assertEquals(retItemSet, expectedSet);
+        Assertions.assertEquals(retItemSet, expectedSet);
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
-    @Test
-    public void testListGetByValueRelRankRange() {
-        Assume.assumeTrue(ASTestUtils.supportsNewCDT(client));
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testListGetByValueRelRankRange(OperationV1Performer opPerformer, boolean useSet) {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+            client.put(null, testKey, new Bin("str", "bin"), new Bin("list", objectList), new Bin("map", objectMapList));
+         Assumptions.assumeTrue(ASTestUtils.supportsNewCDT(client));
 
         List<Map<String, Object>> opList = new ArrayList<>();
         Map<String, Object> opMap = new HashMap<>();
@@ -433,12 +521,20 @@ public class OperateV1ListCorrectTests {
 
         Set<Object> retItemSet = new HashSet<>(retItems);
         Set<Object> expectedSet = new HashSet<>(Arrays.asList(3, 4));
-        Assert.assertEquals(retItemSet, expectedSet);
+        Assertions.assertEquals(retItemSet, expectedSet);
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
-    @Test
-    public void testListGetByValueRelRankRangeNoCount() {
-        Assume.assumeTrue(ASTestUtils.supportsNewCDT(client));
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testListGetByValueRelRankRangeNoCount(OperationV1Performer opPerformer, boolean useSet) {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+            client.put(null, testKey, new Bin("str", "bin"), new Bin("list", objectList), new Bin("map", objectMapList));
+         Assumptions.assumeTrue(ASTestUtils.supportsNewCDT(client));
 
         List<Map<String, Object>> opList = new ArrayList<>();
         Map<String, Object> opMap = new HashMap<>();
@@ -460,11 +556,19 @@ public class OperateV1ListCorrectTests {
 
         Set<Object> retItemSet = new HashSet<>(retItems);
         Set<Object> expectedSet = new HashSet<>(Arrays.asList(2, 3, 4));
-        Assert.assertEquals(retItemSet, expectedSet);
+        Assertions.assertEquals(retItemSet, expectedSet);
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
-    @Test
-    public void testListGetByValueIndex() {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testListGetByValueIndex(OperationV1Performer opPerformer, boolean useSet) {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+            client.put(null, testKey, new Bin("str", "bin"), new Bin("list", objectList), new Bin("map", objectMapList));
         List<Map<String, Object>> opList = new ArrayList<>();
         Map<String, Object> opMap = new HashMap<>();
         Map<String, Object> opValues = new HashMap<>();
@@ -480,14 +584,22 @@ public class OperateV1ListCorrectTests {
         Map<String, Object> binsObject = getReturnedBins(
                 opPerformer.performOperationsAndReturn(mockMVC, testEndpoint, opList));
 
-        Assert.assertTrue(
+        Assertions.assertTrue(
                 ASTestUtils.compareCollection((List<?>) binsObject.get("list"), Collections.singletonList(2)));
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
     @SuppressWarnings("unchecked")
-    @Test
-    public void testListGetByValueRange() {
-        Assume.assumeTrue(ASTestUtils.supportsNewCDT(client));
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testListGetByValueRange(OperationV1Performer opPerformer, boolean useSet) {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+            client.put(null, testKey, new Bin("str", "bin"), new Bin("list", objectList), new Bin("map", objectMapList));
+         Assumptions.assumeTrue(ASTestUtils.supportsNewCDT(client));
 
         List<Map<String, Object>> opList = new ArrayList<>();
         Map<String, Object> opMap = new HashMap<>();
@@ -509,12 +621,20 @@ public class OperateV1ListCorrectTests {
 
         Set<Object> retItemSet = new HashSet<>(retItems);
         Set<Object> expectedSet = new HashSet<>(Arrays.asList(1, 2, 3));
-        Assert.assertEquals(retItemSet, expectedSet);
+        Assertions.assertEquals(retItemSet, expectedSet);
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
-    @Test
-    public void testListGetByValueRangeNoEnd() {
-        Assume.assumeTrue(ASTestUtils.supportsNewCDT(client));
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testListGetByValueRangeNoEnd(OperationV1Performer opPerformer, boolean useSet) {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+            client.put(null, testKey, new Bin("str", "bin"), new Bin("list", objectList), new Bin("map", objectMapList));
+         Assumptions.assumeTrue(ASTestUtils.supportsNewCDT(client));
 
         List<Map<String, Object>> opList = new ArrayList<>();
         Map<String, Object> opMap = new HashMap<>();
@@ -535,13 +655,21 @@ public class OperateV1ListCorrectTests {
 
         Set<Object> retItemSet = new HashSet<>(retItems);
         Set<Object> expectedSet = new HashSet<>(Arrays.asList(1, 2, 3, 4));
-        Assert.assertEquals(retItemSet, expectedSet);
+        Assertions.assertEquals(retItemSet, expectedSet);
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
     @SuppressWarnings("unchecked")
-    @Test
-    public void testListGetByValueRangeNoBegin() {
-        Assume.assumeTrue(ASTestUtils.supportsNewCDT(client));
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testListGetByValueRangeNoBegin(OperationV1Performer opPerformer, boolean useSet) {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+            client.put(null, testKey, new Bin("str", "bin"), new Bin("list", objectList), new Bin("map", objectMapList));
+         Assumptions.assumeTrue(ASTestUtils.supportsNewCDT(client));
 
         List<Map<String, Object>> opList = new ArrayList<>();
         Map<String, Object> opMap = new HashMap<>();
@@ -562,13 +690,21 @@ public class OperateV1ListCorrectTests {
 
         Set<Object> retItemSet = new HashSet<>(retItems);
         Set<Object> expectedSet = new HashSet<>(Arrays.asList(0, 1, 2, 3));
-        Assert.assertEquals(retItemSet, expectedSet);
+        Assertions.assertEquals(retItemSet, expectedSet);
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
     @SuppressWarnings("unchecked")
-    @Test
-    public void testListGetByValueList() {
-        Assume.assumeTrue(ASTestUtils.supportsNewCDT(client));
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testListGetByValueList(OperationV1Performer opPerformer, boolean useSet) {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+            client.put(null, testKey, new Bin("str", "bin"), new Bin("list", objectList), new Bin("map", objectMapList));
+         Assumptions.assumeTrue(ASTestUtils.supportsNewCDT(client));
 
         List<Map<String, Object>> opList = new ArrayList<>();
         Map<String, Object> opMap = new HashMap<>();
@@ -589,13 +725,21 @@ public class OperateV1ListCorrectTests {
 
         Set<Object> retItemSet = new HashSet<>(retItems);
         Set<Object> expectedSet = new HashSet<>(Arrays.asList(2, 0, 4));
-        Assert.assertEquals(retItemSet, expectedSet);
+        Assertions.assertEquals(retItemSet, expectedSet);
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
     @SuppressWarnings("unchecked")
-    @Test
-    public void testListGetByMapValueList() {
-        Assume.assumeTrue(ASTestUtils.supportsNewCDT(client));
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testListGetByMapValueList(OperationV1Performer opPerformer, boolean useSet) {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+            client.put(null, testKey, new Bin("str", "bin"), new Bin("list", objectList), new Bin("map", objectMapList));
+         Assumptions.assumeTrue(ASTestUtils.supportsNewCDT(client));
 
         List<Map<String, Object>> opList = new ArrayList<>();
         Map<String, Object> opMap = new HashMap<>();
@@ -616,12 +760,20 @@ public class OperateV1ListCorrectTests {
 
         Set<Object> retItemSet = new HashSet<>(retItems);
         Set<Object> expectedSet = new HashSet<>(Collections.singletonList(0));
-        Assert.assertEquals(expectedSet, retItemSet);
+        Assertions.assertEquals(expectedSet, retItemSet);
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
     @SuppressWarnings("unchecked")
-    @Test
-    public void testListGetRange() {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testListGetRange(OperationV1Performer opPerformer, boolean useSet) {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+            client.put(null, testKey, new Bin("str", "bin"), new Bin("list", objectList), new Bin("map", objectMapList));
         List<Map<String, Object>> opList = new ArrayList<>();
         Map<String, Object> opMap = new HashMap<>();
         Map<String, Object> opValues = new HashMap<>();
@@ -639,12 +791,20 @@ public class OperateV1ListCorrectTests {
 
         List<Object> retItems = (List<Object>) binsObject.get("list");
 
-        Assert.assertTrue(ASTestUtils.compareCollection(retItems, Arrays.asList(2, 0, 3)));
+        Assertions.assertTrue(ASTestUtils.compareCollection(retItems, Arrays.asList(2, 0, 3)));
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
     @SuppressWarnings("unchecked")
-    @Test
-    public void testListGetRangeNoCount() {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testListGetRangeNoCount(OperationV1Performer opPerformer, boolean useSet) {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+            client.put(null, testKey, new Bin("str", "bin"), new Bin("list", objectList), new Bin("map", objectMapList));
         List<Map<String, Object>> opList = new ArrayList<>();
         Map<String, Object> opMap = new HashMap<>();
         Map<String, Object> opValues = new HashMap<>();
@@ -661,11 +821,19 @@ public class OperateV1ListCorrectTests {
 
         List<Object> retItems = (List<Object>) binsObject.get("list");
 
-        Assert.assertTrue(ASTestUtils.compareCollection(retItems, Arrays.asList(2, 0, 3, 4)));
+        Assertions.assertTrue(ASTestUtils.compareCollection(retItems, Arrays.asList(2, 0, 3, 4)));
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
-    @Test
-    public void testListIncrement() {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testListIncrement(OperationV1Performer opPerformer, boolean useSet) {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+            client.put(null, testKey, new Bin("str", "bin"), new Bin("list", objectList), new Bin("map", objectMapList));
         List<Map<String, Object>> opList = new ArrayList<>();
         Map<String, Object> opMap = new HashMap<>();
         Map<String, Object> opValues = new HashMap<>();
@@ -683,11 +851,19 @@ public class OperateV1ListCorrectTests {
         @SuppressWarnings("unchecked") List<Object> retItems = (List<Object>) client.get(null, testKey).bins.get(
                 "list");
 
-        Assert.assertTrue(ASTestUtils.compareSimpleValues(retItems.get(1), 12));
+        Assertions.assertTrue(ASTestUtils.compareSimpleValues(retItems.get(1), 12));
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
-    @Test
-    public void testListIncrementNoValue() {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testListIncrementNoValue(OperationV1Performer opPerformer, boolean useSet) {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+            client.put(null, testKey, new Bin("str", "bin"), new Bin("list", objectList), new Bin("map", objectMapList));
         List<Map<String, Object>> opList = new ArrayList<>();
         Map<String, Object> opMap = new HashMap<>();
         Map<String, Object> opValues = new HashMap<>();
@@ -703,12 +879,20 @@ public class OperateV1ListCorrectTests {
         @SuppressWarnings("unchecked") List<Object> retItems = (List<Object>) client.get(null, testKey).bins.get(
                 "list");
 
-        Assert.assertTrue(ASTestUtils.compareSimpleValues(retItems.get(1), 3));
+        Assertions.assertTrue(ASTestUtils.compareSimpleValues(retItems.get(1), 3));
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
-    @Test
-    public void testListIncrementWithPolicy() {
-        Assume.assumeTrue(ASTestUtils.supportsNewCDT(client));
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testListIncrementWithPolicy(OperationV1Performer opPerformer, boolean useSet) {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+            client.put(null, testKey, new Bin("str", "bin"), new Bin("list", objectList), new Bin("map", objectMapList));
+         Assumptions.assumeTrue(ASTestUtils.supportsNewCDT(client));
 
         List<Map<String, Object>> opList = new ArrayList<>();
         Map<String, Object> opMap = new HashMap<>();
@@ -729,11 +913,19 @@ public class OperateV1ListCorrectTests {
         @SuppressWarnings("unchecked") List<Object> retItems = (List<Object>) client.get(null, testKey).bins.get(
                 "list");
 
-        Assert.assertTrue(ASTestUtils.compareSimpleValues(retItems.get(1), 12));
+        Assertions.assertTrue(ASTestUtils.compareSimpleValues(retItems.get(1), 12));
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
-    @Test
-    public void testListInsert() {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testListInsert(OperationV1Performer opPerformer, boolean useSet) {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+            client.put(null, testKey, new Bin("str", "bin"), new Bin("list", objectList), new Bin("map", objectMapList));
         List<Map<String, Object>> opList = new ArrayList<>();
         Map<String, Object> opMap = new HashMap<>();
         Map<String, Object> opValues = new HashMap<>();
@@ -752,12 +944,20 @@ public class OperateV1ListCorrectTests {
                 "list");
         objectList.add(1, "one");
 
-        Assert.assertTrue(ASTestUtils.compareCollection(retItems, objectList));
+        Assertions.assertTrue(ASTestUtils.compareCollection(retItems, objectList));
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
-    @Test
-    public void testListInsertPolicy() {
-        Assume.assumeTrue(ASTestUtils.supportsNewCDT(client));
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testListInsertPolicy(OperationV1Performer opPerformer, boolean useSet) {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+            client.put(null, testKey, new Bin("str", "bin"), new Bin("list", objectList), new Bin("map", objectMapList));
+         Assumptions.assumeTrue(ASTestUtils.supportsNewCDT(client));
         List<Map<String, Object>> opList = new ArrayList<>();
         Map<String, Object> opMap = new HashMap<>();
         Map<String, Object> opValues = new HashMap<>();
@@ -776,11 +976,19 @@ public class OperateV1ListCorrectTests {
         @SuppressWarnings("unchecked") List<Object> retItems = (List<Object>) client.get(null, testKey).bins.get(
                 "list");
 
-        Assert.assertTrue(ASTestUtils.compareCollection(retItems, Arrays.asList(1, 5, 2, 0, 3, 4)));
+        Assertions.assertTrue(ASTestUtils.compareCollection(retItems, Arrays.asList(1, 5, 2, 0, 3, 4)));
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
-    @Test
-    public void testListInsertItems() {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testListInsertItems(OperationV1Performer opPerformer, boolean useSet) {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+            client.put(null, testKey, new Bin("str", "bin"), new Bin("list", objectList), new Bin("map", objectMapList));
         List<Map<String, Object>> opList = new ArrayList<>();
         Map<String, Object> opMap = new HashMap<>();
         Map<String, Object> opValues = new HashMap<>();
@@ -801,12 +1009,20 @@ public class OperateV1ListCorrectTests {
         objectList.add(1, "two");
         objectList.add(1, "one");
 
-        Assert.assertTrue(ASTestUtils.compareCollection(retItems, objectList));
+        Assertions.assertTrue(ASTestUtils.compareCollection(retItems, objectList));
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
-    @Test
-    public void testListInsertItemsPolicy() {
-        Assume.assumeTrue(ASTestUtils.supportsNewCDT(client));
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testListInsertItemsPolicy(OperationV1Performer opPerformer, boolean useSet) {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+            client.put(null, testKey, new Bin("str", "bin"), new Bin("list", objectList), new Bin("map", objectMapList));
+         Assumptions.assumeTrue(ASTestUtils.supportsNewCDT(client));
 
         List<Map<String, Object>> opList = new ArrayList<>();
         Map<String, Object> opMap = new HashMap<>();
@@ -829,12 +1045,20 @@ public class OperateV1ListCorrectTests {
         objectList.add(1, "two");
         objectList.add(1, "one");
 
-        Assert.assertTrue(ASTestUtils.compareCollection(retItems, objectList));
+        Assertions.assertTrue(ASTestUtils.compareCollection(retItems, objectList));
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
     @SuppressWarnings("unchecked")
-    @Test
-    public void testListPop() {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testListPop(OperationV1Performer opPerformer, boolean useSet) {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+            client.put(null, testKey, new Bin("str", "bin"), new Bin("list", objectList), new Bin("map", objectMapList));
         List<Map<String, Object>> opList = new ArrayList<>();
         Map<String, Object> opMap = new HashMap<>();
         Map<String, Object> opValues = new HashMap<>();
@@ -848,17 +1072,25 @@ public class OperateV1ListCorrectTests {
         Map<String, Object> returnedBins = getReturnedBins(
                 opPerformer.performOperationsAndReturn(mockMVC, testEndpoint, opList));
 
-        Assert.assertTrue(ASTestUtils.compareSimpleValues(returnedBins.get("list"), 2));
+        Assertions.assertTrue(ASTestUtils.compareSimpleValues(returnedBins.get("list"), 2));
 
         List<Object> retItems = (List<Object>) client.get(null, testKey).bins.get("list");
 
         objectList.remove(1);
-        Assert.assertTrue(ASTestUtils.compareCollection(retItems, objectList));
+        Assertions.assertTrue(ASTestUtils.compareCollection(retItems, objectList));
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
     @SuppressWarnings("unchecked")
-    @Test
-    public void testListPopRange() {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testListPopRange(OperationV1Performer opPerformer, boolean useSet) {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+            client.put(null, testKey, new Bin("str", "bin"), new Bin("list", objectList), new Bin("map", objectMapList));
         List<Map<String, Object>> opList = new ArrayList<>();
         Map<String, Object> opMap = new HashMap<>();
         Map<String, Object> opValues = new HashMap<>();
@@ -873,7 +1105,7 @@ public class OperateV1ListCorrectTests {
         Map<String, Object> returnedBins = getReturnedBins(
                 opPerformer.performOperationsAndReturn(mockMVC, testEndpoint, opList));
 
-        Assert.assertTrue(ASTestUtils.compareSimpleValues(returnedBins.get("list"), Arrays.asList(2, 0, 3)));
+        Assertions.assertTrue(ASTestUtils.compareSimpleValues(returnedBins.get("list"), Arrays.asList(2, 0, 3)));
 
         List<Object> retItems = (List<Object>) client.get(null, testKey).bins.get("list");
         // Remove 3 items starting from index 1
@@ -881,11 +1113,19 @@ public class OperateV1ListCorrectTests {
         objectList.remove(1);
         objectList.remove(1);
 
-        Assert.assertTrue(ASTestUtils.compareCollection(retItems, objectList));
+        Assertions.assertTrue(ASTestUtils.compareCollection(retItems, objectList));
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
-    @Test
-    public void testListPopRangeNoCount() {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testListPopRangeNoCount(OperationV1Performer opPerformer, boolean useSet) {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+            client.put(null, testKey, new Bin("str", "bin"), new Bin("list", objectList), new Bin("map", objectMapList));
         List<Map<String, Object>> opList = new ArrayList<>();
         Map<String, Object> opMap = new HashMap<>();
         Map<String, Object> opValues = new HashMap<>();
@@ -899,7 +1139,7 @@ public class OperateV1ListCorrectTests {
         Map<String, Object> returnedBins = getReturnedBins(
                 opPerformer.performOperationsAndReturn(mockMVC, testEndpoint, opList));
 
-        Assert.assertTrue(ASTestUtils.compareSimpleValues(returnedBins.get("list"), Arrays.asList(2, 0, 3, 4)));
+        Assertions.assertTrue(ASTestUtils.compareSimpleValues(returnedBins.get("list"), Arrays.asList(2, 0, 3, 4)));
 
         @SuppressWarnings("unchecked") List<Object> retItems = (List<Object>) client.get(null, testKey).bins.get(
                 "list");
@@ -910,11 +1150,19 @@ public class OperateV1ListCorrectTests {
         objectList.remove(1);
         objectList.remove(1);
 
-        Assert.assertTrue(ASTestUtils.compareCollection(retItems, objectList));
+        Assertions.assertTrue(ASTestUtils.compareCollection(retItems, objectList));
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
-    @Test
-    public void testListRemove() {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testListRemove(OperationV1Performer opPerformer, boolean useSet) {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+            client.put(null, testKey, new Bin("str", "bin"), new Bin("list", objectList), new Bin("map", objectMapList));
         List<Map<String, Object>> opList = new ArrayList<>();
         Map<String, Object> opMap = new HashMap<>();
         Map<String, Object> opValues = new HashMap<>();
@@ -931,12 +1179,20 @@ public class OperateV1ListCorrectTests {
                 "list");
 
         objectList.remove(2);
-        Assert.assertTrue(ASTestUtils.compareCollection(retItems, objectList));
+        Assertions.assertTrue(ASTestUtils.compareCollection(retItems, objectList));
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
-    @Test
-    public void testListRemoveByIndex() {
-        Assume.assumeTrue(ASTestUtils.supportsNewCDT(client));
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testListRemoveByIndex(OperationV1Performer opPerformer, boolean useSet) {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+            client.put(null, testKey, new Bin("str", "bin"), new Bin("list", objectList), new Bin("map", objectMapList));
+         Assumptions.assumeTrue(ASTestUtils.supportsNewCDT(client));
 
         List<Map<String, Object>> opList = new ArrayList<>();
         Map<String, Object> opMap = new HashMap<>();
@@ -953,18 +1209,26 @@ public class OperateV1ListCorrectTests {
                 opPerformer.performOperationsAndReturn(mockMVC, testEndpoint, opList));
 
         //The popped value was the smallest element, so it's rank should be 0
-        Assert.assertTrue(ASTestUtils.compareSimpleValues(returnedBins.get("list"), 0));
+        Assertions.assertTrue(ASTestUtils.compareSimpleValues(returnedBins.get("list"), 0));
 
         @SuppressWarnings("unchecked") List<Object> retItems = (List<Object>) client.get(null, testKey).bins.get(
                 "list");
 
         objectList.remove(2);
-        Assert.assertTrue(ASTestUtils.compareCollection(retItems, objectList));
+        Assertions.assertTrue(ASTestUtils.compareCollection(retItems, objectList));
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
-    @Test
-    public void testListRemoveByIndexRange() {
-        Assume.assumeTrue(ASTestUtils.supportsNewCDT(client));
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testListRemoveByIndexRange(OperationV1Performer opPerformer, boolean useSet) {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+            client.put(null, testKey, new Bin("str", "bin"), new Bin("list", objectList), new Bin("map", objectMapList));
+         Assumptions.assumeTrue(ASTestUtils.supportsNewCDT(client));
 
         List<Map<String, Object>> opList = new ArrayList<>();
         Map<String, Object> opMap = new HashMap<>();
@@ -982,7 +1246,7 @@ public class OperateV1ListCorrectTests {
                 opPerformer.performOperationsAndReturn(mockMVC, testEndpoint, opList));
 
         //Three items were removed, so the server should return 3 items
-        Assert.assertTrue(ASTestUtils.compareSimpleValues(returnedBins.get("list"), 3));
+        Assertions.assertTrue(ASTestUtils.compareSimpleValues(returnedBins.get("list"), 3));
 
         @SuppressWarnings("unchecked") List<Object> retItems = (List<Object>) client.get(null, testKey).bins.get(
                 "list");
@@ -990,12 +1254,20 @@ public class OperateV1ListCorrectTests {
         objectList.remove(1);
         objectList.remove(1);
         objectList.remove(1);
-        Assert.assertTrue(ASTestUtils.compareCollection(retItems, objectList));
+        Assertions.assertTrue(ASTestUtils.compareCollection(retItems, objectList));
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
-    @Test
-    public void testListRemoveByIndexRangeNoCount() {
-        Assume.assumeTrue(ASTestUtils.supportsNewCDT(client));
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testListRemoveByIndexRangeNoCount(OperationV1Performer opPerformer, boolean useSet) {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+            client.put(null, testKey, new Bin("str", "bin"), new Bin("list", objectList), new Bin("map", objectMapList));
+         Assumptions.assumeTrue(ASTestUtils.supportsNewCDT(client));
 
         List<Map<String, Object>> opList = new ArrayList<>();
         Map<String, Object> opMap = new HashMap<>();
@@ -1012,7 +1284,7 @@ public class OperateV1ListCorrectTests {
                 opPerformer.performOperationsAndReturn(mockMVC, testEndpoint, opList));
 
         //Three items were removed, so the server should return 3 items
-        Assert.assertTrue(ASTestUtils.compareSimpleValues(returnedBins.get("list"), 4));
+        Assertions.assertTrue(ASTestUtils.compareSimpleValues(returnedBins.get("list"), 4));
 
         @SuppressWarnings("unchecked") List<Object> retItems = (List<Object>) client.get(null, testKey).bins.get(
                 "list");
@@ -1021,13 +1293,21 @@ public class OperateV1ListCorrectTests {
         objectList.remove(1);
         objectList.remove(1);
         objectList.remove(1);
-        Assert.assertTrue(ASTestUtils.compareCollection(retItems, objectList));
+        Assertions.assertTrue(ASTestUtils.compareCollection(retItems, objectList));
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
     @SuppressWarnings("unchecked")
-    @Test
-    public void testListRemoveByRank() {
-        Assume.assumeTrue(ASTestUtils.supportsNewCDT(client));
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testListRemoveByRank(OperationV1Performer opPerformer, boolean useSet) {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+            client.put(null, testKey, new Bin("str", "bin"), new Bin("list", objectList), new Bin("map", objectMapList));
+         Assumptions.assumeTrue(ASTestUtils.supportsNewCDT(client));
 
         List<Map<String, Object>> opList = new ArrayList<>();
         Map<String, Object> opMap = new HashMap<>();
@@ -1044,16 +1324,24 @@ public class OperateV1ListCorrectTests {
                 opPerformer.performOperationsAndReturn(mockMVC, testEndpoint, opList));
 
         //The popped value was the smallest element, it was at index 2
-        Assert.assertTrue(ASTestUtils.compareSimpleValues(returnedBins.get("list"), 2));
+        Assertions.assertTrue(ASTestUtils.compareSimpleValues(returnedBins.get("list"), 2));
 
         List<Object> retItems = (List<Object>) client.get(null, testKey).bins.get("list");
         objectList.remove(2);
-        Assert.assertTrue(ASTestUtils.compareCollection(retItems, objectList));
+        Assertions.assertTrue(ASTestUtils.compareCollection(retItems, objectList));
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
-    @Test
-    public void testListRemoveByRankRange() {
-        Assume.assumeTrue(ASTestUtils.supportsNewCDT(client));
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testListRemoveByRankRange(OperationV1Performer opPerformer, boolean useSet) {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+            client.put(null, testKey, new Bin("str", "bin"), new Bin("list", objectList), new Bin("map", objectMapList));
+         Assumptions.assumeTrue(ASTestUtils.supportsNewCDT(client));
 
         List<Map<String, Object>> opList = new ArrayList<>();
         Map<String, Object> opMap = new HashMap<>();
@@ -1071,12 +1359,20 @@ public class OperateV1ListCorrectTests {
 
         @SuppressWarnings("unchecked") List<Object> retItems = (List<Object>) client.get(null, testKey).bins.get(
                 "list");
-        Assert.assertTrue(ASTestUtils.compareCollection(retItems, Arrays.asList(0, 4)));
+        Assertions.assertTrue(ASTestUtils.compareCollection(retItems, Arrays.asList(0, 4)));
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
-    @Test
-    public void testListRemoveByRankRangeNoCount() {
-        Assume.assumeTrue(ASTestUtils.supportsNewCDT(client));
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testListRemoveByRankRangeNoCount(OperationV1Performer opPerformer, boolean useSet) {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+            client.put(null, testKey, new Bin("str", "bin"), new Bin("list", objectList), new Bin("map", objectMapList));
+         Assumptions.assumeTrue(ASTestUtils.supportsNewCDT(client));
 
         List<Map<String, Object>> opList = new ArrayList<>();
         Map<String, Object> opMap = new HashMap<>();
@@ -1093,12 +1389,20 @@ public class OperateV1ListCorrectTests {
 
         @SuppressWarnings("unchecked") List<Object> retItems = (List<Object>) client.get(null, testKey).bins.get(
                 "list");
-        Assert.assertTrue(ASTestUtils.compareCollection(retItems, Collections.singletonList(0)));
+        Assertions.assertTrue(ASTestUtils.compareCollection(retItems, Collections.singletonList(0)));
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
-    @Test
-    public void testListRemoveByValueRelRankRange() {
-        Assume.assumeTrue(ASTestUtils.supportsNewCDT(client));
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testListRemoveByValueRelRankRange(OperationV1Performer opPerformer, boolean useSet) {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+            client.put(null, testKey, new Bin("str", "bin"), new Bin("list", objectList), new Bin("map", objectMapList));
+         Assumptions.assumeTrue(ASTestUtils.supportsNewCDT(client));
 
         List<Map<String, Object>> opList = new ArrayList<>();
         Map<String, Object> opMap = new HashMap<>();
@@ -1117,12 +1421,20 @@ public class OperateV1ListCorrectTests {
 
         @SuppressWarnings("unchecked") List<Object> retItems = (List<Object>) client.get(null, testKey).bins.get(
                 "list");
-        Assert.assertTrue(ASTestUtils.compareCollection(retItems, Arrays.asList(1, 0, 4)));
+        Assertions.assertTrue(ASTestUtils.compareCollection(retItems, Arrays.asList(1, 0, 4)));
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
-    @Test
-    public void testListRemoveByValueRelRankRangeNoCount() {
-        Assume.assumeTrue(ASTestUtils.supportsNewCDT(client));
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testListRemoveByValueRelRankRangeNoCount(OperationV1Performer opPerformer, boolean useSet) {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+            client.put(null, testKey, new Bin("str", "bin"), new Bin("list", objectList), new Bin("map", objectMapList));
+         Assumptions.assumeTrue(ASTestUtils.supportsNewCDT(client));
 
         List<Map<String, Object>> opList = new ArrayList<>();
         Map<String, Object> opMap = new HashMap<>();
@@ -1140,12 +1452,20 @@ public class OperateV1ListCorrectTests {
 
         @SuppressWarnings("unchecked") List<Object> retItems = (List<Object>) client.get(null, testKey).bins.get(
                 "list");
-        Assert.assertTrue(ASTestUtils.compareCollection(retItems, Arrays.asList(1, 0)));
+        Assertions.assertTrue(ASTestUtils.compareCollection(retItems, Arrays.asList(1, 0)));
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
-    @Test
-    public void testListRemoveByValue() {
-        Assume.assumeTrue(ASTestUtils.supportsNewCDT(client));
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testListRemoveByValue(OperationV1Performer opPerformer, boolean useSet) {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+            client.put(null, testKey, new Bin("str", "bin"), new Bin("list", objectList), new Bin("map", objectMapList));
+         Assumptions.assumeTrue(ASTestUtils.supportsNewCDT(client));
 
         objectList.add(0);
         Bin newListBin = new Bin("list", objectList);
@@ -1165,18 +1485,26 @@ public class OperateV1ListCorrectTests {
                 opPerformer.performOperationsAndReturn(mockMVC, testEndpoint, opList));
 
         //The popped value was the smallest element, it was at index 2
-        Assert.assertTrue(ASTestUtils.compareCollection((List<?>) returnedBins.get("list"), Arrays.asList(2, 5)));
+        Assertions.assertTrue(ASTestUtils.compareCollection((List<?>) returnedBins.get("list"), Arrays.asList(2, 5)));
 
         @SuppressWarnings("unchecked") List<Object> retItems = (List<Object>) client.get(null, testKey).bins.get(
                 "list");
         objectList.remove(5);
         objectList.remove(2);
-        Assert.assertTrue(ASTestUtils.compareCollection(retItems, objectList));
+        Assertions.assertTrue(ASTestUtils.compareCollection(retItems, objectList));
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
-    @Test
-    public void testListRemoveByValueRange() {
-        Assume.assumeTrue(ASTestUtils.supportsNewCDT(client));
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testListRemoveByValueRange(OperationV1Performer opPerformer, boolean useSet) {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+            client.put(null, testKey, new Bin("str", "bin"), new Bin("list", objectList), new Bin("map", objectMapList));
+         Assumptions.assumeTrue(ASTestUtils.supportsNewCDT(client));
 
         List<Map<String, Object>> opList = new ArrayList<>();
         Map<String, Object> opMap = new HashMap<>();
@@ -1194,16 +1522,24 @@ public class OperateV1ListCorrectTests {
                 opPerformer.performOperationsAndReturn(mockMVC, testEndpoint, opList));
 
         //The popped value was the smallest element, it was at index 2
-        Assert.assertTrue(ASTestUtils.compareSimpleValues(returnedBins.get("list"), 2));
+        Assertions.assertTrue(ASTestUtils.compareSimpleValues(returnedBins.get("list"), 2));
 
         @SuppressWarnings("unchecked") List<Object> retItems = (List<Object>) client.get(null, testKey).bins.get(
                 "list");
-        Assert.assertTrue(ASTestUtils.compareCollection(retItems, Arrays.asList(0, 3, 4)));
+        Assertions.assertTrue(ASTestUtils.compareCollection(retItems, Arrays.asList(0, 3, 4)));
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
-    @Test
-    public void testListRemoveByValueRangeNoBegin() {
-        Assume.assumeTrue(ASTestUtils.supportsNewCDT(client));
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testListRemoveByValueRangeNoBegin(OperationV1Performer opPerformer, boolean useSet) {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+            client.put(null, testKey, new Bin("str", "bin"), new Bin("list", objectList), new Bin("map", objectMapList));
+         Assumptions.assumeTrue(ASTestUtils.supportsNewCDT(client));
 
         List<Map<String, Object>> opList = new ArrayList<>();
         Map<String, Object> opMap = new HashMap<>();
@@ -1220,17 +1556,25 @@ public class OperateV1ListCorrectTests {
                 opPerformer.performOperationsAndReturn(mockMVC, testEndpoint, opList));
 
         //The popped value was the smallest element, it was at index 2
-        Assert.assertTrue(ASTestUtils.compareSimpleValues(returnedBins.get("list"), 3));
+        Assertions.assertTrue(ASTestUtils.compareSimpleValues(returnedBins.get("list"), 3));
 
         @SuppressWarnings("unchecked") List<Object> retItems = (List<Object>) client.get(null, testKey).bins.get(
                 "list");
-        Assert.assertTrue(ASTestUtils.compareCollection(retItems, Arrays.asList(3, 4)));
+        Assertions.assertTrue(ASTestUtils.compareCollection(retItems, Arrays.asList(3, 4)));
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
     @SuppressWarnings("unchecked")
-    @Test
-    public void testListRemoveByValueRangeNoEnd() {
-        Assume.assumeTrue(ASTestUtils.supportsNewCDT(client));
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testListRemoveByValueRangeNoEnd(OperationV1Performer opPerformer, boolean useSet) {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+            client.put(null, testKey, new Bin("str", "bin"), new Bin("list", objectList), new Bin("map", objectMapList));
+         Assumptions.assumeTrue(ASTestUtils.supportsNewCDT(client));
 
         List<Map<String, Object>> opList = new ArrayList<>();
         Map<String, Object> opMap = new HashMap<>();
@@ -1247,16 +1591,24 @@ public class OperateV1ListCorrectTests {
                 opPerformer.performOperationsAndReturn(mockMVC, testEndpoint, opList));
 
         //The popped value was the smallest element, it was at index 2
-        Assert.assertTrue(ASTestUtils.compareSimpleValues(returnedBins.get("list"), 4));
+        Assertions.assertTrue(ASTestUtils.compareSimpleValues(returnedBins.get("list"), 4));
 
         List<Object> retItems = (List<Object>) client.get(null, testKey).bins.get("list");
-        Assert.assertTrue(ASTestUtils.compareCollection(retItems, Collections.singletonList(0)));
+        Assertions.assertTrue(ASTestUtils.compareCollection(retItems, Collections.singletonList(0)));
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
     @SuppressWarnings("unchecked")
-    @Test
-    public void testListRemoveByValueList() {
-        Assume.assumeTrue(ASTestUtils.supportsNewCDT(client));
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testListRemoveByValueList(OperationV1Performer opPerformer, boolean useSet) {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+            client.put(null, testKey, new Bin("str", "bin"), new Bin("list", objectList), new Bin("map", objectMapList));
+         Assumptions.assumeTrue(ASTestUtils.supportsNewCDT(client));
 
         objectList.add(0);
         Bin newListBin = new Bin("list", objectList);
@@ -1276,15 +1628,23 @@ public class OperateV1ListCorrectTests {
                 opPerformer.performOperationsAndReturn(mockMVC, testEndpoint, opList));
 
         //The popped value was the smallest element, it was at index 2
-        Assert.assertTrue(ASTestUtils.compareSimpleValues(returnedBins.get("list"), 4));
+        Assertions.assertTrue(ASTestUtils.compareSimpleValues(returnedBins.get("list"), 4));
 
         List<Object> retItems = (List<Object>) client.get(null, testKey).bins.get("list");
 
-        Assert.assertTrue(ASTestUtils.compareCollection(retItems, Arrays.asList(1, 3)));
+        Assertions.assertTrue(ASTestUtils.compareCollection(retItems, Arrays.asList(1, 3)));
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
-    @Test
-    public void testListRemoveRange() {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testListRemoveRange(OperationV1Performer opPerformer, boolean useSet) {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+            client.put(null, testKey, new Bin("str", "bin"), new Bin("list", objectList), new Bin("map", objectMapList));
 
         List<Map<String, Object>> opList = new ArrayList<>();
         Map<String, Object> opMap = new HashMap<>();
@@ -1305,11 +1665,19 @@ public class OperateV1ListCorrectTests {
         objectList.remove(1);
         objectList.remove(1);
         objectList.remove(1);
-        Assert.assertTrue(ASTestUtils.compareCollection(retItems, objectList));
+        Assertions.assertTrue(ASTestUtils.compareCollection(retItems, objectList));
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
-    @Test
-    public void testListRemoveRangeNoCount() {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testListRemoveRangeNoCount(OperationV1Performer opPerformer, boolean useSet) {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+            client.put(null, testKey, new Bin("str", "bin"), new Bin("list", objectList), new Bin("map", objectMapList));
 
         List<Map<String, Object>> opList = new ArrayList<>();
         Map<String, Object> opMap = new HashMap<>();
@@ -1330,11 +1698,19 @@ public class OperateV1ListCorrectTests {
         objectList.remove(1);
         objectList.remove(1);
         objectList.remove(1);
-        Assert.assertTrue(ASTestUtils.compareCollection(retItems, objectList));
+        Assertions.assertTrue(ASTestUtils.compareCollection(retItems, objectList));
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
-    @Test
-    public void testListSetValue() {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testListSetValue(OperationV1Performer opPerformer, boolean useSet) {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+            client.put(null, testKey, new Bin("str", "bin"), new Bin("list", objectList), new Bin("map", objectMapList));
         List<Map<String, Object>> opList = new ArrayList<>();
         Map<String, Object> opMap = new HashMap<>();
         Map<String, Object> opValues = new HashMap<>();
@@ -1351,12 +1727,20 @@ public class OperateV1ListCorrectTests {
         @SuppressWarnings("unchecked") List<Object> retItems = (List<Object>) client.get(null, testKey).bins.get(
                 "list");
 
-        Assert.assertTrue(ASTestUtils.compareCollection(retItems, Arrays.asList(1, "two", 0, 3, 4)));
+        Assertions.assertTrue(ASTestUtils.compareCollection(retItems, Arrays.asList(1, "two", 0, 3, 4)));
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
-    @Test
-    public void testListSetValueWithPolicy() {
-        Assume.assumeTrue(ASTestUtils.supportsNewCDT(client));
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testListSetValueWithPolicy(OperationV1Performer opPerformer, boolean useSet) {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+            client.put(null, testKey, new Bin("str", "bin"), new Bin("list", objectList), new Bin("map", objectMapList));
+         Assumptions.assumeTrue(ASTestUtils.supportsNewCDT(client));
 
         List<Map<String, Object>> opList = new ArrayList<>();
         Map<String, Object> opMap = new HashMap<>();
@@ -1376,12 +1760,20 @@ public class OperateV1ListCorrectTests {
         @SuppressWarnings("unchecked") List<Object> retItems = (List<Object>) client.get(null, testKey).bins.get(
                 "list");
 
-        Assert.assertTrue(ASTestUtils.compareCollection(retItems, Arrays.asList(1, "two", 0, 3, 4)));
+        Assertions.assertTrue(ASTestUtils.compareCollection(retItems, Arrays.asList(1, "two", 0, 3, 4)));
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
-    @Test
-    public void testListSetOrder() {
-        Assume.assumeTrue(ASTestUtils.supportsNewCDT(client));
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testListSetOrder(OperationV1Performer opPerformer, boolean useSet) {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+            client.put(null, testKey, new Bin("str", "bin"), new Bin("list", objectList), new Bin("map", objectMapList));
+         Assumptions.assumeTrue(ASTestUtils.supportsNewCDT(client));
 
         List<Map<String, Object>> opList = new ArrayList<>();
         Map<String, Object> opMap = new HashMap<>();
@@ -1398,11 +1790,19 @@ public class OperateV1ListCorrectTests {
         @SuppressWarnings("unchecked") List<Object> retItems = (List<Object>) client.get(null, testKey).bins.get(
                 "list");
 
-        Assert.assertTrue(ASTestUtils.compareCollection(retItems, Arrays.asList(0, 1, 2, 3, 4)));
+        Assertions.assertTrue(ASTestUtils.compareCollection(retItems, Arrays.asList(0, 1, 2, 3, 4)));
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
-    @Test
-    public void testListSize() {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testListSize(OperationV1Performer opPerformer, boolean useSet) {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+            client.put(null, testKey, new Bin("str", "bin"), new Bin("list", objectList), new Bin("map", objectMapList));
         List<Map<String, Object>> opList = new ArrayList<>();
         Map<String, Object> opMap = new HashMap<>();
         Map<String, Object> opValues = new HashMap<>();
@@ -1415,12 +1815,20 @@ public class OperateV1ListCorrectTests {
         Map<String, Object> retBins = getReturnedBins(
                 opPerformer.performOperationsAndReturn(mockMVC, testEndpoint, opList));
 
-        Assert.assertTrue(ASTestUtils.compareSimpleValues(retBins.get("list"), 5));
+        Assertions.assertTrue(ASTestUtils.compareSimpleValues(retBins.get("list"), 5));
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
-    @Test
-    public void testListSort() {
-        Assume.assumeTrue(ASTestUtils.supportsNewCDT(client));
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testListSort(OperationV1Performer opPerformer, boolean useSet) {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+            client.put(null, testKey, new Bin("str", "bin"), new Bin("list", objectList), new Bin("map", objectMapList));
+         Assumptions.assumeTrue(ASTestUtils.supportsNewCDT(client));
 
         List<Map<String, Object>> opList = new ArrayList<>();
         Map<String, Object> opMap = new HashMap<>();
@@ -1435,11 +1843,19 @@ public class OperateV1ListCorrectTests {
 
         @SuppressWarnings("unchecked") List<Object> retItems = (List<Object>) client.get(null, testKey).bins.get(
                 "list");
-        Assert.assertTrue(ASTestUtils.compareCollection(retItems, Arrays.asList(0, 1, 2, 3, 4)));
+        Assertions.assertTrue(ASTestUtils.compareCollection(retItems, Arrays.asList(0, 1, 2, 3, 4)));
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
-    @Test
-    public void testListTrim() {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testListTrim(OperationV1Performer opPerformer, boolean useSet) {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+            client.put(null, testKey, new Bin("str", "bin"), new Bin("list", objectList), new Bin("map", objectMapList));
         List<Map<String, Object>> opList = new ArrayList<>();
         Map<String, Object> opMap = new HashMap<>();
         Map<String, Object> opValues = new HashMap<>();
@@ -1455,14 +1871,27 @@ public class OperateV1ListCorrectTests {
 
         @SuppressWarnings("unchecked") List<Object> retItems = (List<Object>) client.get(null, testKey).bins.get(
                 "list");
-        Assert.assertTrue(ASTestUtils.compareCollection(retItems, Arrays.asList(2, 0, 3)));
+        Assertions.assertTrue(ASTestUtils.compareCollection(retItems, Arrays.asList(2, 0, 3)));
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
-    @Test
-    public void testListCreate() {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testListCreate(OperationV1Performer opPerformer, boolean useSet) {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+            client.put(null, testKey,  new Bin("str", "bin"), 
+                                              new Bin("list", objectList), 
+                                              new Bin("map", objectMapList));
+            
+
         List<Map<String, Object>> opList = new ArrayList<>();
         Map<String, Object> opMap = new HashMap<>();
-        Map<String, Object> opValues = new HashMap<>();
+        Map<String, Object> opValues = new HashMap<>();                                              
+
         Map<String, Object> item = new HashMap<>();
         List<Map<String, Object>> ctx = new ArrayList<>();
 
@@ -1470,6 +1899,7 @@ public class OperateV1ListCorrectTests {
         opValues.put("ctx", ctx);
         opValues.put("listOrder", "UNORDERED");
         opValues.put("pad", true);
+
 
         item.put("type", "listIndex");
         item.put("index", 7);
@@ -1483,7 +1913,10 @@ public class OperateV1ListCorrectTests {
 
         @SuppressWarnings("unchecked") List<Object> retItems = (List<Object>) client.get(null, testKey).bins.get(
                 "list");
-        Assert.assertTrue(((List<?>) retItems.get(7)).isEmpty());
+        Assertions.assertTrue(((List<?>) retItems.get(7)).isEmpty());
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
     private Map<String, Object> buildListPolicyMap(ListOrder order, int flags) {

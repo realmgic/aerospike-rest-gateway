@@ -23,27 +23,23 @@ import com.aerospike.restclient.ASTestMapper;
 import com.aerospike.restclient.IASTestMapper;
 import com.aerospike.restclient.config.JSONMessageConverter;
 import com.aerospike.restclient.config.MsgPackConverter;
-import org.junit.Assert;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.Stream;
 
-@RunWith(Parameterized.class)
 public class RestClientBatchUDFPolicyTest {
-    private final IASTestMapper mapper;
-
-    @Parameterized.Parameters
-    public static Object[] getParams() {
-        return new Object[]{
-                new JsonRestClientBatchUDFPolicyMapper(), new MsgPackRestClientBatchUDFPolicyMapper()
-        };
-    }
-
-    public RestClientBatchUDFPolicyTest(IASTestMapper mapper) {
-        this.mapper = mapper;
+    static Stream<Arguments> getParams() {
+        return Stream.of(
+                Arguments.of(new JsonRestClientBatchUDFPolicyMapper()),
+                Arguments.of(new MsgPackRestClientBatchUDFPolicyMapper())
+        );
     }
 
     @Test
@@ -51,8 +47,9 @@ public class RestClientBatchUDFPolicyTest {
         new BatchUDFPolicy();
     }
 
-    @Test
-    public void testObjectMappedBatchUDFConstructionStringKey() throws Exception {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testObjectMappedBatchUDFConstructionStringKey(IASTestMapper mapper) throws Exception {
         Map<String, Object> policyMap = new HashMap<>();
         policyMap.put("filterExp", "a filter");
         policyMap.put("commitLevel", "COMMIT_MASTER");
@@ -62,15 +59,16 @@ public class RestClientBatchUDFPolicyTest {
 
         BatchUDFPolicy mappedBody = (BatchUDFPolicy) mapper.bytesToObject(mapper.objectToBytes(policyMap));
 
-        Assert.assertEquals("a filter", mappedBody.filterExp);
-        Assert.assertEquals(CommitLevel.COMMIT_MASTER, mappedBody.commitLevel);
-        Assert.assertEquals(101, mappedBody.expiration);
-        Assert.assertTrue(mappedBody.durableDelete);
-        Assert.assertTrue(mappedBody.sendKey);
+        Assertions.assertEquals("a filter", mappedBody.filterExp);
+        Assertions.assertEquals(CommitLevel.COMMIT_MASTER, mappedBody.commitLevel);
+        Assertions.assertEquals(101, mappedBody.expiration);
+        Assertions.assertTrue(mappedBody.durableDelete);
+        Assertions.assertTrue(mappedBody.sendKey);
     }
 
-    @Test
-    public void testToBatchUDFPolicy() {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testToBatchUDFPolicy(IASTestMapper mapper) {
         Expression expectedExp = Exp.build(Exp.ge(Exp.bin("a", Exp.Type.INT), Exp.bin("b", Exp.Type.INT)));
         String expectedExpStr = expectedExp.getBase64();
         BatchUDFPolicy restPolicy = new BatchUDFPolicy();
@@ -82,11 +80,11 @@ public class RestClientBatchUDFPolicyTest {
 
         com.aerospike.client.policy.BatchUDFPolicy actualPolicy = restPolicy.toBatchUDFPolicy();
 
-        Assert.assertEquals(expectedExp, actualPolicy.filterExp);
-        Assert.assertEquals(CommitLevel.COMMIT_MASTER, actualPolicy.commitLevel);
-        Assert.assertEquals(101, actualPolicy.expiration);
-        Assert.assertTrue(actualPolicy.durableDelete);
-        Assert.assertTrue(actualPolicy.sendKey);
+        Assertions.assertEquals(expectedExp, actualPolicy.filterExp);
+        Assertions.assertEquals(CommitLevel.COMMIT_MASTER, actualPolicy.commitLevel);
+        Assertions.assertEquals(101, actualPolicy.expiration);
+        Assertions.assertTrue(actualPolicy.durableDelete);
+        Assertions.assertTrue(actualPolicy.sendKey);
     }
 }
 
@@ -103,4 +101,3 @@ class MsgPackRestClientBatchUDFPolicyMapper extends ASTestMapper {
         super(MsgPackConverter.getASMsgPackObjectMapper(), BatchUDFPolicy.class);
     }
 }
-

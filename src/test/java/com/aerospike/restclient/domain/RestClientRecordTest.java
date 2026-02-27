@@ -17,8 +17,8 @@
 package com.aerospike.restclient.domain;
 
 import com.aerospike.client.Record;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -35,9 +35,9 @@ public class RestClientRecordTest {
         Record record = new Record(null, 2, 1000);
         RestClientRecord rcRecord = new RestClientRecord(record);
 
-        Assert.assertNull(rcRecord.bins);
-        Assert.assertEquals(rcRecord.generation, 2);
-        Assert.assertEquals(rcRecord.ttl, record.getTimeToLive());
+        Assertions.assertNull(rcRecord.bins);
+        Assertions.assertEquals(rcRecord.generation, 2);
+        Assertions.assertEquals(rcRecord.ttl, record.getTimeToLive());
     }
 
     @Test
@@ -48,8 +48,8 @@ public class RestClientRecordTest {
         Record record = new Record(bins, 2, 1000);
         RestClientRecord rcRecord = new RestClientRecord(record);
 
-        Assert.assertEquals(rcRecord.bins, bins);
-        Assert.assertEquals(rcRecord.generation, 2);
-        Assert.assertEquals(rcRecord.ttl, record.getTimeToLive());
+        Assertions.assertEquals(rcRecord.bins, bins);
+        Assertions.assertEquals(rcRecord.generation, 2);
+        Assertions.assertEquals(rcRecord.ttl, record.getTimeToLive());
     }
 }

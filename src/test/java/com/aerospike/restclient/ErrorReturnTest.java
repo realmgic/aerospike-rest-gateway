@@ -20,8 +20,8 @@ import com.aerospike.client.AerospikeException;
 import com.aerospike.client.ResultCode;
 import com.aerospike.restclient.domain.RestClientError;
 import com.aerospike.restclient.util.RestClientErrors.AerospikeRestClientError;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 import org.springframework.http.ResponseEntity;
 
 public class ErrorReturnTest {
@@ -33,7 +33,7 @@ public class ErrorReturnTest {
         AerospikeException notInDoubt = new AerospikeException(ResultCode.PARAMETER_ERROR, "Not In Doubt");
         ResponseEntity<Object> retEntity = handler.handleAsError(notInDoubt);
         RestClientError returnedError = (RestClientError) retEntity.getBody();
-        Assert.assertFalse(returnedError.getInDoubt());
+        Assertions.assertFalse(returnedError.getInDoubt());
     }
 
     @Test
@@ -41,7 +41,7 @@ public class ErrorReturnTest {
         AerospikeException notInDoubt = new AerospikeException(ResultCode.TIMEOUT, true);
         ResponseEntity<Object> retEntity = handler.handleAsError(notInDoubt);
         RestClientError returnedError = (RestClientError) retEntity.getBody();
-        Assert.assertTrue(returnedError.getInDoubt());
+        Assertions.assertTrue(returnedError.getInDoubt());
     }
 
     @Test
@@ -49,7 +49,7 @@ public class ErrorReturnTest {
         AerospikeException notInDoubt = new AerospikeException(ResultCode.TIMEOUT, true);
         ResponseEntity<Object> retEntity = handler.handleAsError(notInDoubt);
         RestClientError returnedError = (RestClientError) retEntity.getBody();
-        Assert.assertEquals((Integer) ResultCode.TIMEOUT, returnedError.getInternalErrorCode());
+        Assertions.assertEquals((Integer) ResultCode.TIMEOUT, returnedError.getInternalErrorCode());
     }
 
     @Test
@@ -57,6 +57,6 @@ public class ErrorReturnTest {
         AerospikeRestClientError apiError = new AerospikeRestClientError();
         ResponseEntity<Object> retEntity = handler.handleAPIError(apiError);
         RestClientError returnedError = (RestClientError) retEntity.getBody();
-        Assert.assertNull(returnedError.getInternalErrorCode());
+        Assertions.assertNull(returnedError.getInternalErrorCode());
     }
 }

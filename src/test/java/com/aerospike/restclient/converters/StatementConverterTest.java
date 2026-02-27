@@ -19,9 +19,9 @@ package com.aerospike.restclient.converters;
 import com.aerospike.client.query.Statement;
 import com.aerospike.restclient.util.AerospikeAPIConstants;
 import com.aerospike.restclient.util.converters.StatementConverter;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 
@@ -31,7 +31,7 @@ import java.util.List;
 public class StatementConverterTest {
     MultiValueMap<String, String> policyMap;
 
-    @Before
+    @BeforeEach
     public void setup() {
         policyMap = new LinkedMultiValueMap<>();
     }
@@ -44,7 +44,7 @@ public class StatementConverterTest {
         multiVal.add("bin3");
         policyMap.put(AerospikeAPIConstants.RECORD_BINS, multiVal);
         Statement stmt = StatementConverter.statementFromMultiMap(policyMap);
-        Assert.assertArrayEquals(new String[]{"bin1", "bin2", "bin3"}, stmt.getBinNames());
+        Assertions.assertArrayEquals(new String[]{"bin1", "bin2", "bin3"}, stmt.getBinNames());
     }
 
     @Test
@@ -53,7 +53,7 @@ public class StatementConverterTest {
         multiVal.add("multiVal");
         policyMap.put(AerospikeAPIConstants.QUERY_INDEX_NAME, multiVal);
         Statement stmt = StatementConverter.statementFromMultiMap(policyMap);
-        Assert.assertEquals("multiVal", stmt.getIndexName());
+        Assertions.assertEquals("multiVal", stmt.getIndexName());
     }
 
     @Test
@@ -62,7 +62,7 @@ public class StatementConverterTest {
         multiVal.add("100");
         policyMap.put(AerospikeAPIConstants.MAX_RECORDS, multiVal);
         Statement stmt = StatementConverter.statementFromMultiMap(policyMap);
-        Assert.assertEquals(100, stmt.getMaxRecords());
+        Assertions.assertEquals(100, stmt.getMaxRecords());
     }
 
     @Test
@@ -71,7 +71,7 @@ public class StatementConverterTest {
         multiVal.add("101");
         policyMap.put(AerospikeAPIConstants.RECORDS_PER_SECOND, multiVal);
         Statement stmt = StatementConverter.statementFromMultiMap(policyMap);
-        Assert.assertEquals(101, stmt.getRecordsPerSecond());
+        Assertions.assertEquals(101, stmt.getRecordsPerSecond());
     }
 
 }

@@ -17,36 +17,29 @@
 package com.aerospike.restclient.domain.operationmodels;
 
 import com.aerospike.client.cdt.ListWriteFlags;
-import org.junit.Assert;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
-@RunWith(Parameterized.class)
+import java.util.stream.Stream;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
 public class ListWriteFlagTest {
 
-    @Parameterized.Parameters
-    public static Object[][] getParams() {
-        return new Object[][]{
-                new Object[]{ListWriteFlag.DEFAULT, ListWriteFlags.DEFAULT},
-                new Object[]{ListWriteFlag.ADD_UNIQUE, ListWriteFlags.ADD_UNIQUE},
-                new Object[]{ListWriteFlag.INSERT_BOUNDED, ListWriteFlags.INSERT_BOUNDED},
-                new Object[]{ListWriteFlag.NO_FAIL, ListWriteFlags.NO_FAIL},
-                new Object[]{ListWriteFlag.PARTIAL, ListWriteFlags.PARTIAL},
-                };
+    static Stream<Arguments> getParams() {
+        return Stream.of(
+                Arguments.of(ListWriteFlag.DEFAULT, ListWriteFlags.DEFAULT),
+                Arguments.of(ListWriteFlag.ADD_UNIQUE, ListWriteFlags.ADD_UNIQUE),
+                Arguments.of(ListWriteFlag.INSERT_BOUNDED, ListWriteFlags.INSERT_BOUNDED),
+                Arguments.of(ListWriteFlag.NO_FAIL, ListWriteFlags.NO_FAIL),
+                Arguments.of(ListWriteFlag.PARTIAL, ListWriteFlags.PARTIAL)
+        );
     }
 
-    ListWriteFlag enum_;
-    int flag;
-
-    public ListWriteFlagTest(ListWriteFlag enum_, int flag) {
-        this.enum_ = enum_;
-        this.flag = flag;
-    }
-
-    @Test
-    public void testFlag() {
-        Assert.assertEquals(enum_.flag, flag);
+    @ParameterizedTest
+    @MethodSource("getParams")
+    void testFlag(ListWriteFlag enum_, int flag) {
+        assertEquals(enum_.flag, flag);
     }
 }
-

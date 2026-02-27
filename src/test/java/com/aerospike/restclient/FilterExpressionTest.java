@@ -20,15 +20,14 @@ import com.aerospike.client.AerospikeClient;
 import com.aerospike.client.Bin;
 import com.aerospike.client.Key;
 import com.aerospike.client.exp.Exp;
-import org.junit.*;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockHttpServletResponse;
-import org.springframework.test.context.junit4.rules.SpringClassRule;
-import org.springframework.test.context.junit4.rules.SpringMethodRule;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
@@ -36,19 +35,14 @@ import org.springframework.web.context.WebApplicationContext;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.Stream;
 
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@RunWith(Parameterized.class)
 @SpringBootTest
 public class FilterExpressionTest {
-
-    @ClassRule
-    public static final SpringClassRule springClassRule = new SpringClassRule();
-
-    @Rule
-    public final SpringMethodRule springMethodRule = new SpringMethodRule();
 
     @Autowired
     private AerospikeClient client;
@@ -57,115 +51,128 @@ public class FilterExpressionTest {
     private WebApplicationContext wac;
 
     private MockMvc mockMVC;
-    private final RecordDeserializer recordDeserializer;
-    private final String mediaType;
-    private final Key testKey;
-    private final String noBinEndpoint;
 
-    @Parameterized.Parameters
-    public static Object[] mappers() {
-        return new Object[][]{
-                {new JSONRestRecordDeserializer(), MediaType.APPLICATION_JSON.toString(), true},
-                {new MsgPackRestRecordDeserializer(), "application/msgpack", true},
-                {new JSONRestRecordDeserializer(), MediaType.APPLICATION_JSON.toString(), false},
-                {new MsgPackRestRecordDeserializer(), "application/msgpack", false}
-        };
+    static Stream<Arguments> mappers() {
+        return Stream.of(
+                Arguments.of(new JSONRestRecordDeserializer(), MediaType.APPLICATION_JSON.toString(), true),
+                Arguments.of(new MsgPackRestRecordDeserializer(), "application/msgpack", true),
+                Arguments.of(new JSONRestRecordDeserializer(), MediaType.APPLICATION_JSON.toString(), false),
+                Arguments.of(new MsgPackRestRecordDeserializer(), "application/msgpack", false)
+        );
     }
 
-    @Before
+    private static Key testKey(boolean useSet) {
+        return useSet ? new Key("test", "junit", "getput") : new Key("test", null, "getput");
+    }
+
+    private static String noBinEndpoint(boolean useSet) {
+        return useSet ? ASTestUtils.buildEndpointV1("kvs", "test", "junit", "getput") : ASTestUtils.buildEndpointV1("kvs", "test", "getput");
+    }
+
+    private static String buildEndpoint(String noBinEndpoint, String encoded) {
+        return noBinEndpoint + "?filterexp=" + encoded;
+    }
+
+    @BeforeEach
     public void setup() {
         mockMVC = MockMvcBuilders.webAppContextSetup(wac).build();
     }
 
-    @After
-    public void clean() {
-        client.delete(null, this.testKey);
-    }
+    @ParameterizedTest
+    @MethodSource("mappers")
+    public void GetInteger(RecordDeserializer recordDeserializer, String mediaType, boolean useSet) throws Exception {
+        Key key = testKey(useSet);
+        String noBinEndpt = noBinEndpoint(useSet);
+        try {
+            Map<String, Object> binMap = new HashMap<>();
 
-    public FilterExpressionTest(RecordDeserializer deserializer, String mt, boolean useSet) {
-        this.recordDeserializer = deserializer;
-        this.mediaType = mt;
+            Bin intBin = new Bin("integer", 10);
+            binMap.put(intBin.name, intBin.value.toInteger());
 
-        if (useSet) {
-            testKey = new Key("test", "junit", "getput");
-            noBinEndpoint = ASTestUtils.buildEndpointV1("kvs", "test", "junit", "getput");
-        } else {
-            testKey = new Key("test", null, "getput");
-            noBinEndpoint = ASTestUtils.buildEndpointV1("kvs", "test", "getput");
+            client.put(null, key, intBin);
+
+            byte[] filterBytes = Exp.build(Exp.gt(Exp.bin("integer", Exp.Type.INT), Exp.val(1))).getBytes();
+
+            String encoded = Base64.getUrlEncoder().encodeToString(filterBytes);
+            String endpoint = buildEndpoint(noBinEndpt, encoded);
+            MockHttpServletResponse res = mockMVC.perform(
+                            get(endpoint).contentType(MediaType.APPLICATION_JSON).accept(mediaType))
+                    .andExpect(status().isOk())
+                    .andReturn()
+                    .getResponse();
+            Map<String, Object> resObject = recordDeserializer.getReturnedBins(res);
+            assertTrue(ASTestUtils.compareMapStringObj(resObject, binMap));
+        } finally {
+            client.delete(null, key);
         }
     }
 
-    @Test
-    public void GetInteger() throws Exception {
-        Map<String, Object> binMap = new HashMap<>();
+    @ParameterizedTest
+    @MethodSource("mappers")
+    public void GetNoInteger(RecordDeserializer recordDeserializer, String mediaType, boolean useSet) throws Exception {
+        Key key = testKey(useSet);
+        String noBinEndpt = noBinEndpoint(useSet);
+        try {
+            Bin intBin = new Bin("integer", 10);
+            client.put(null, key, intBin);
 
-        Bin intBin = new Bin("integer", 10);
-        binMap.put(intBin.name, intBin.value.toInteger());
+            byte[] filterBytes = Exp.build(Exp.le(Exp.bin("integer", Exp.Type.INT), Exp.val(1))).getBytes();
 
-        client.put(null, testKey, intBin);
-
-        byte[] filterBytes = Exp.build(Exp.gt(Exp.bin("integer", Exp.Type.INT), Exp.val(1))).getBytes();
-
-        String encoded = Base64.getUrlEncoder().encodeToString(filterBytes);
-        String endpoint = buildEndpoint(encoded);
-        MockHttpServletResponse res = mockMVC.perform(
-                        get(endpoint).contentType(MediaType.APPLICATION_JSON).accept(mediaType))
-                .andExpect(status().isOk())
-                .andReturn()
-                .getResponse();
-        Map<String, Object> resObject = recordDeserializer.getReturnedBins(res);
-        Assert.assertTrue(ASTestUtils.compareMapStringObj(resObject, binMap));
+            String encoded = Base64.getUrlEncoder().encodeToString(filterBytes);
+            String endpoint = buildEndpoint(noBinEndpt, encoded);
+            mockMVC.perform(get(endpoint).contentType(MediaType.APPLICATION_JSON).accept(mediaType))
+                    .andExpect(status().isNotFound());
+        } finally {
+            client.delete(null, key);
+        }
     }
 
-    @Test
-    public void GetNoInteger() throws Exception {
-        Bin intBin = new Bin("integer", 10);
-        client.put(null, testKey, intBin);
+    @ParameterizedTest
+    @MethodSource("mappers")
+    public void GetString(RecordDeserializer recordDeserializer, String mediaType, boolean useSet) throws Exception {
+        Key key = testKey(useSet);
+        String noBinEndpt = noBinEndpoint(useSet);
+        try {
+            Map<String, Object> binMap = new HashMap<>();
+            Bin intBin = new Bin("string", "aerospike");
 
-        byte[] filterBytes = Exp.build(Exp.le(Exp.bin("integer", Exp.Type.INT), Exp.val(1))).getBytes();
+            binMap.put("string", "aerospike");
 
-        String encoded = Base64.getUrlEncoder().encodeToString(filterBytes);
-        String endpoint = buildEndpoint(encoded);
-        mockMVC.perform(get(endpoint).contentType(MediaType.APPLICATION_JSON).accept(mediaType))
-                .andExpect(status().isNotFound());
+            client.put(null, key, intBin);
+
+            byte[] filterBytes = Exp.build(Exp.eq(Exp.bin("string", Exp.Type.STRING), Exp.val("aerospike"))).getBytes();
+
+            String encoded = Base64.getUrlEncoder().encodeToString(filterBytes);
+            String endpoint = buildEndpoint(noBinEndpt, encoded);
+            MockHttpServletResponse res = mockMVC.perform(
+                            get(endpoint).contentType(MediaType.APPLICATION_JSON).accept(mediaType))
+                    .andExpect(status().isOk())
+                    .andReturn()
+                    .getResponse();
+            Map<String, Object> resObject = recordDeserializer.getReturnedBins(res);
+            assertTrue(ASTestUtils.compareMapStringObj(resObject, binMap));
+        } finally {
+            client.delete(null, key);
+        }
     }
 
-    @Test
-    public void GetString() throws Exception {
-        Map<String, Object> binMap = new HashMap<>();
-        Bin intBin = new Bin("string", "aerospike");
+    @ParameterizedTest
+    @MethodSource("mappers")
+    public void GetNoString(RecordDeserializer recordDeserializer, String mediaType, boolean useSet) throws Exception {
+        Key key = testKey(useSet);
+        String noBinEndpt = noBinEndpoint(useSet);
+        try {
+            Bin intBin = new Bin("string", "aerospike");
+            client.put(null, key, intBin);
 
-        binMap.put("string", "aerospike");
+            byte[] filterBytes = Exp.build(Exp.eq(Exp.bin("string", Exp.Type.STRING), Exp.val("aero"))).getBytes();
 
-        client.put(null, testKey, intBin);
-
-        byte[] filterBytes = Exp.build(Exp.eq(Exp.bin("string", Exp.Type.STRING), Exp.val("aerospike"))).getBytes();
-
-        String encoded = Base64.getUrlEncoder().encodeToString(filterBytes);
-        String endpoint = buildEndpoint(encoded);
-        MockHttpServletResponse res = mockMVC.perform(
-                        get(endpoint).contentType(MediaType.APPLICATION_JSON).accept(mediaType))
-                .andExpect(status().isOk())
-                .andReturn()
-                .getResponse();
-        Map<String, Object> resObject = recordDeserializer.getReturnedBins(res);
-        Assert.assertTrue(ASTestUtils.compareMapStringObj(resObject, binMap));
-    }
-
-    @Test
-    public void GetNoString() throws Exception {
-        Bin intBin = new Bin("string", "aerospike");
-        client.put(null, testKey, intBin);
-
-        byte[] filterBytes = Exp.build(Exp.eq(Exp.bin("string", Exp.Type.STRING), Exp.val("aero"))).getBytes();
-
-        String encoded = Base64.getUrlEncoder().encodeToString(filterBytes);
-        String endpoint = buildEndpoint(encoded);
-        mockMVC.perform(get(endpoint).contentType(MediaType.APPLICATION_JSON).accept(mediaType))
-                .andExpect(status().isNotFound());
-    }
-
-    private String buildEndpoint(String encoded) {
-        return noBinEndpoint + "?filterexp=" + encoded;
+            String encoded = Base64.getUrlEncoder().encodeToString(filterBytes);
+            String endpoint = buildEndpoint(noBinEndpt, encoded);
+            mockMVC.perform(get(endpoint).contentType(MediaType.APPLICATION_JSON).accept(mediaType))
+                    .andExpect(status().isNotFound());
+        } finally {
+            client.delete(null, key);
+        }
     }
 }

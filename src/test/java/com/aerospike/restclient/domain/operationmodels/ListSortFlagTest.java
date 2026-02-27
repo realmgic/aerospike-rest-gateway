@@ -17,32 +17,26 @@
 package com.aerospike.restclient.domain.operationmodels;
 
 import com.aerospike.client.cdt.ListSortFlags;
-import org.junit.Assert;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
-@RunWith(Parameterized.class)
+import java.util.stream.Stream;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
 public class ListSortFlagTest {
 
-    @Parameterized.Parameters
-    public static Object[][] getParams() {
-        return new Object[][]{
-                new Object[]{ListSortFlag.DEFAULT, ListSortFlags.DEFAULT},
-                new Object[]{ListSortFlag.DROP_DUPLICATES, ListSortFlags.DROP_DUPLICATES},
-                };
+    static Stream<Arguments> getParams() {
+        return Stream.of(
+                Arguments.of(ListSortFlag.DEFAULT, ListSortFlags.DEFAULT),
+                Arguments.of(ListSortFlag.DROP_DUPLICATES, ListSortFlags.DROP_DUPLICATES)
+        );
     }
 
-    ListSortFlag enum_;
-    int flag;
-
-    public ListSortFlagTest(ListSortFlag enum_, int flag) {
-        this.enum_ = enum_;
-        this.flag = flag;
-    }
-
-    @Test
-    public void toListSortFlagTest() {
-        Assert.assertEquals(enum_.flag, flag);
+    @ParameterizedTest
+    @MethodSource("getParams")
+    void toListSortFlagTest(ListSortFlag enum_, int flag) {
+        assertEquals(enum_.flag, flag);
     }
 }

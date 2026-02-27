@@ -22,24 +22,30 @@ import com.aerospike.client.Key;
 import com.aerospike.client.Value;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.junit.*;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameters;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Assumptions;
+
 import org.msgpack.jackson.dataformat.MessagePackFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockHttpServletResponse;
-import org.springframework.test.context.junit4.rules.SpringClassRule;
-import org.springframework.test.context.junit4.rules.SpringMethodRule;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.util.*;
+import java.util.stream.Stream;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -49,16 +55,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * The expected and returned values are compared.
  *
  */
-@RunWith(Parameterized.class)
 @SpringBootTest
 public class RecordGetCorrectTests {
-
-    /* Needed to run as a Spring Boot test */
-    @ClassRule
-    public static final SpringClassRule springClassRule = new SpringClassRule();
-
-    @Rule
-    public final SpringMethodRule springMethodRule = new SpringMethodRule();
 
     @Autowired
     private AerospikeClient client;
@@ -67,284 +65,285 @@ public class RecordGetCorrectTests {
     private WebApplicationContext wac;
 
     private MockMvc mockMVC;
-    private final RecordDeserializer recordDeserializer;
-    private final String currentMediaType;
 
-    /*
-     * Returns a two item array, of mediatype and record deserializer
-     */
-    @Parameters
-    public static Object[] mappers() {
-        return new Object[][]{
-                {new JSONRestRecordDeserializer(), MediaType.APPLICATION_JSON.toString(), true},
-                {new MsgPackRestRecordDeserializer(), "application/msgpack", true},
-                {new JSONRestRecordDeserializer(), MediaType.APPLICATION_JSON.toString(), false},
-                {new MsgPackRestRecordDeserializer(), "application/msgpack", false},
-                };
+    private static final byte[] KEY_BYTES = {1, 127, 127, 1};
+
+    public static Stream<Arguments> mappers() {
+        return Stream.of(
+                Arguments.of(new JSONRestRecordDeserializer(), MediaType.APPLICATION_JSON.toString(), true),
+                Arguments.of(new MsgPackRestRecordDeserializer(), "application/msgpack", true),
+                Arguments.of(new JSONRestRecordDeserializer(), MediaType.APPLICATION_JSON.toString(), false),
+                Arguments.of(new MsgPackRestRecordDeserializer(), "application/msgpack", false)
+        );
     }
 
-    private final Key testKey;
-    private final Key intKey;
-    private final Key bytesKey;
+    private static Key keyFor(boolean useSet) {
+        return useSet ? new Key("test", "junit", "getput") : new Key("test", null, "getput");
+    }
 
-    private List<Key> keysToRemove;
+    private static Key intKeyFor(boolean useSet) {
+        return useSet ? new Key("test", "junit", 1) : new Key("test", null, 1);
+    }
 
-    // Endpoint to receive all requests
-    private final String noBinEndpoint;
-    private final String intEndpoint;
-    private final String bytesEndpoint;
-    private final String digestEndpoint;
+    private static Key bytesKeyFor(boolean useSet) {
+        return useSet ? new Key("test", "junit", new Value.BytesValue(KEY_BYTES)) : new Key("test", null, new Value.BytesValue(KEY_BYTES));
+    }
 
-    @Before
+    private static String noBinEndpointFor(boolean useSet) {
+        return useSet ? ASTestUtils.buildEndpointV1("kvs", "test", "junit", "getput") : ASTestUtils.buildEndpointV1("kvs", "test", "getput");
+    }
+
+    private static String intEndpointFor(boolean useSet) {
+        return useSet ? ASTestUtils.buildEndpointV1("kvs", "test", "junit", "1") + "?keytype=INTEGER" : ASTestUtils.buildEndpointV1("kvs", "test", "1") + "?keytype=INTEGER";
+    }
+
+    private static String bytesEndpointFor(boolean useSet) {
+        String b64 = Base64.getUrlEncoder().encodeToString(KEY_BYTES);
+        return useSet ? ASTestUtils.buildEndpointV1("kvs", "test", "junit", b64) + "?keytype=BYTES" : ASTestUtils.buildEndpointV1("kvs", "test", b64) + "?keytype=BYTES";
+    }
+
+    private static String digestEndpointFor(Key testKey, boolean useSet) {
+        String keyDigest = Base64.getUrlEncoder().encodeToString(testKey.digest);
+        return useSet ? ASTestUtils.buildEndpointV1("kvs", testKey.namespace, testKey.setName, keyDigest) + "?keytype=DIGEST" : ASTestUtils.buildEndpointV1("kvs", testKey.namespace, keyDigest) + "?keytype=DIGEST";
+    }
+
+    @BeforeEach
     public void setup() {
         mockMVC = MockMvcBuilders.webAppContextSetup(wac).build();
-        keysToRemove = new ArrayList<>();
     }
 
-    @After
-    public void clean() {
-        client.delete(null, this.testKey);
-        for (Key key : keysToRemove) {
-            client.delete(null, key);
+    @ParameterizedTest
+    @MethodSource("mappers")
+    public void GetInteger(RecordDeserializer recordDeserializer, String currentMediaType, boolean useSet) throws Exception {
+        Key testKey = keyFor(useSet);
+        String noBinEndpoint = noBinEndpointFor(useSet);
+        try {
+            Map<String, Object> binMap = new HashMap<>();
+            Bin intBin = new Bin("integer", 10);
+            binMap.put(intBin.name, intBin.value.toInteger());
+            client.put(null, testKey, intBin);
+
+            MockHttpServletResponse res = mockMVC.perform(
+                            get(noBinEndpoint).contentType(MediaType.APPLICATION_JSON).accept(currentMediaType))
+                    .andExpect(status().isOk())
+                    .andReturn()
+                    .getResponse();
+
+            Map<String, Object> resObject = recordDeserializer.getReturnedBins(res);
+            Assertions.assertTrue(ASTestUtils.compareMapStringObj(resObject, binMap));
+        } finally {
+            client.delete(null, testKey);
         }
     }
 
-    public RecordGetCorrectTests(RecordDeserializer deserializer, String mt, boolean useSet) {
-        this.recordDeserializer = deserializer;
-        this.currentMediaType = mt;
-        byte[] keyBytes = {1, 127, 127, 1};
+    @ParameterizedTest
+    @MethodSource("mappers")
+    public void GetString(RecordDeserializer recordDeserializer, String currentMediaType, boolean useSet) throws Exception {
+        Key testKey = keyFor(useSet);
+        String noBinEndpoint = noBinEndpointFor(useSet);
+        try {
+            Map<String, Object> binMap = new HashMap<>();
+            Bin intBin = new Bin("string", "aerospike");
+            binMap.put("string", "aerospike");
+            client.put(null, testKey, intBin);
 
-        if (useSet) {
-            testKey = new Key("test", "junit", "getput");
-            intKey = new Key("test", "junit", 1);
+            MockHttpServletResponse res = mockMVC.perform(
+                            get(noBinEndpoint).contentType(MediaType.APPLICATION_JSON).accept(currentMediaType))
+                    .andExpect(status().isOk())
+                    .andReturn()
+                    .getResponse();
 
-            bytesKey = new Key("test", "junit", new Value.BytesValue(keyBytes));
-
-            noBinEndpoint = ASTestUtils.buildEndpointV1("kvs", "test", "junit", "getput");
-
-            intEndpoint = ASTestUtils.buildEndpointV1("kvs", "test", "junit", "1") + "?keytype=INTEGER";
-
-            String keyDigest = Base64.getUrlEncoder().encodeToString(this.testKey.digest);
-            digestEndpoint = ASTestUtils.buildEndpointV1("kvs", this.testKey.namespace, this.testKey.setName,
-                    keyDigest) + "?keytype=DIGEST";
-
-            String b64byteStr = Base64.getUrlEncoder().encodeToString(keyBytes);
-            bytesEndpoint = ASTestUtils.buildEndpointV1("kvs", "test", "junit", b64byteStr) + "?keytype=BYTES";
-        } else {
-            testKey = new Key("test", null, "getput");
-            intKey = new Key("test", null, 1);
-
-            bytesKey = new Key("test", null, new Value.BytesValue(keyBytes));
-
-            noBinEndpoint = ASTestUtils.buildEndpointV1("kvs", "test", "getput");
-
-            intEndpoint = ASTestUtils.buildEndpointV1("kvs", "test", "1") + "?keytype=INTEGER";
-
-            String keyDigest = Base64.getUrlEncoder().encodeToString(this.testKey.digest);
-            digestEndpoint = ASTestUtils.buildEndpointV1("kvs", this.testKey.namespace, keyDigest) + "?keytype=DIGEST";
-
-            String b64byteStr = Base64.getUrlEncoder().encodeToString(keyBytes);
-            bytesEndpoint = ASTestUtils.buildEndpointV1("kvs", "test", b64byteStr) + "?keytype=BYTES";
+            Map<String, Object> resObject = recordDeserializer.getReturnedBins(res);
+            Assertions.assertTrue(ASTestUtils.compareMapStringObj(resObject, binMap));
+        } finally {
+            client.delete(null, testKey);
         }
     }
 
-    @Test
-    public void GetInteger() throws Exception {
-        Map<String, Object> binMap = new HashMap<>();
+    @ParameterizedTest
+    @MethodSource("mappers")
+    public void GetDouble(RecordDeserializer recordDeserializer, String currentMediaType, boolean useSet) throws Exception {
+        Key testKey = keyFor(useSet);
+        String noBinEndpoint = noBinEndpointFor(useSet);
+        try {
+            Map<String, Object> binMap = new HashMap<>();
+            Bin intBin = new Bin("double", 2.718);
+            binMap.put("double", 2.718);
+            client.put(null, testKey, intBin);
 
-        Bin intBin = new Bin("integer", 10);
-        binMap.put(intBin.name, intBin.value.toInteger());
+            MockHttpServletResponse res = mockMVC.perform(
+                            get(noBinEndpoint).contentType(MediaType.APPLICATION_JSON).accept(currentMediaType))
+                    .andExpect(status().isOk())
+                    .andReturn()
+                    .getResponse();
 
-        client.put(null, this.testKey, intBin);
-
-        MockHttpServletResponse res = mockMVC.perform(
-                        get(noBinEndpoint).contentType(MediaType.APPLICATION_JSON).accept(currentMediaType))
-                .andExpect(status().isOk())
-                .andReturn()
-                .getResponse();
-
-        Map<String, Object> resObject = recordDeserializer.getReturnedBins(res);
-
-        Assert.assertTrue(ASTestUtils.compareMapStringObj(resObject, binMap));
+            Map<String, Object> resObject = recordDeserializer.getReturnedBins(res);
+            Assertions.assertTrue(ASTestUtils.compareMapStringObj(resObject, binMap));
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
-    @Test
-    public void GetString() throws Exception {
-        Map<String, Object> binMap = new HashMap<>();
-        Bin intBin = new Bin("string", "aerospike");
+    @ParameterizedTest
+    @MethodSource("mappers")
+    public void GetList(RecordDeserializer recordDeserializer, String currentMediaType, boolean useSet) throws Exception {
+        Key testKey = keyFor(useSet);
+        String noBinEndpoint = noBinEndpointFor(useSet);
+        try {
+            Map<String, Object> binMap = new HashMap<>();
+            List<String> putList = Arrays.asList("a", "e", "r", "o");
+            Bin intBin = new Bin("list", putList);
+            binMap.put("list", putList);
+            client.put(null, testKey, intBin);
 
-        binMap.put("string", "aerospike");
+            MockHttpServletResponse res = mockMVC.perform(
+                            get(noBinEndpoint).contentType(MediaType.APPLICATION_JSON).accept(currentMediaType))
+                    .andExpect(status().isOk())
+                    .andReturn()
+                    .getResponse();
 
-        client.put(null, this.testKey, intBin);
-
-        MockHttpServletResponse res = mockMVC.perform(
-                        get(noBinEndpoint).contentType(MediaType.APPLICATION_JSON).accept(currentMediaType))
-                .andExpect(status().isOk())
-                .andReturn()
-                .getResponse();
-
-        Map<String, Object> resObject = recordDeserializer.getReturnedBins(res);
-
-        Assert.assertTrue(ASTestUtils.compareMapStringObj(resObject, binMap));
+            Map<String, Object> resObject = recordDeserializer.getReturnedBins(res);
+            Assertions.assertTrue(ASTestUtils.compareMapStringObj(resObject, binMap));
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
-    @Test
-    public void GetDouble() throws Exception {
-        Map<String, Object> binMap = new HashMap<>();
-        Bin intBin = new Bin("double", 2.718);
+    @ParameterizedTest
+    @MethodSource("mappers")
+    public void GetMap(RecordDeserializer recordDeserializer, String currentMediaType, boolean useSet) throws Exception {
+        Key testKey = keyFor(useSet);
+        String noBinEndpoint = noBinEndpointFor(useSet);
+        try {
+            Map<String, Object> binMap = new HashMap<>();
+            Map<Object, Object> putMap = new HashMap<>();
+            putMap.put("aero", "spike");
+            putMap.put("int", 5);
+            Bin intBin = new Bin("map", putMap);
+            binMap.put("map", putMap);
+            client.put(null, testKey, intBin);
 
-        binMap.put("double", 2.718);
+            MockHttpServletResponse res = mockMVC.perform(
+                            get(noBinEndpoint).contentType(MediaType.APPLICATION_JSON).accept(currentMediaType))
+                    .andExpect(status().isOk())
+                    .andReturn()
+                    .getResponse();
 
-        client.put(null, this.testKey, intBin);
-
-        MockHttpServletResponse res = mockMVC.perform(
-                        get(noBinEndpoint).contentType(MediaType.APPLICATION_JSON).accept(currentMediaType))
-                .andExpect(status().isOk())
-                .andReturn()
-                .getResponse();
-
-        Map<String, Object> resObject = recordDeserializer.getReturnedBins(res);
-
-        Assert.assertTrue(ASTestUtils.compareMapStringObj(resObject, binMap));
-    }
-
-    @Test
-    public void GetList() throws Exception {
-        Map<String, Object> binMap = new HashMap<>();
-        List<String> putList = Arrays.asList("a", "e", "r", "o");
-        Bin intBin = new Bin("list", putList);
-
-        binMap.put("list", putList);
-
-        client.put(null, this.testKey, intBin);
-
-        MockHttpServletResponse res = mockMVC.perform(
-                        get(noBinEndpoint).contentType(MediaType.APPLICATION_JSON).accept(currentMediaType))
-                .andExpect(status().isOk())
-                .andReturn()
-                .getResponse();
-
-        Map<String, Object> resObject = recordDeserializer.getReturnedBins(res);
-
-        Assert.assertTrue(ASTestUtils.compareMapStringObj(resObject, binMap));
-    }
-
-    @Test
-    public void GetMap() throws Exception {
-        Map<String, Object> binMap = new HashMap<>();
-        Map<Object, Object> putMap = new HashMap<>();
-        putMap.put("aero", "spike");
-        putMap.put("int", 5);
-
-        Bin intBin = new Bin("map", putMap);
-
-        binMap.put("map", putMap);
-
-        client.put(null, this.testKey, intBin);
-
-        MockHttpServletResponse res = mockMVC.perform(
-                        get(noBinEndpoint).contentType(MediaType.APPLICATION_JSON).accept(currentMediaType))
-                .andExpect(status().isOk())
-                .andReturn()
-                .getResponse();
-
-        Map<String, Object> resObject = recordDeserializer.getReturnedBins(res);
-
-        Assert.assertTrue(ASTestUtils.compareMapStringObj(resObject, binMap));
+            Map<String, Object> resObject = recordDeserializer.getReturnedBins(res);
+            Assertions.assertTrue(ASTestUtils.compareMapStringObj(resObject, binMap));
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
     /*
      * Ensure that passing a number of bin names at the end of the URI
      * causes only the specified bins to be contained in the Rest Gateway's response
      */
-    @Test
-    public void GetFilteredByBins() throws Exception {
-        Map<String, Object> binMap = new HashMap<>();
-        String[] returnBins = {"A", "B", "E"};
+    @ParameterizedTest
+    @MethodSource("mappers")
+    public void GetFilteredByBins(RecordDeserializer recordDeserializer, String currentMediaType, boolean useSet) throws Exception {
+        Key testKey = keyFor(useSet);
+        String noBinEndpoint = noBinEndpointFor(useSet);
+        try {
+            Map<String, Object> binMap = new HashMap<>();
+            String[] returnBins = {"A", "B", "E"};
+            Bin binA = new Bin("A", 1);
+            Bin binB = new Bin("B", 2);
+            Bin binC = new Bin("C", 3);
+            Bin binD = new Bin("D", 4);
+            Bin binE = new Bin("E", 5);
+            binMap.put("A", 1);
+            binMap.put("B", 2);
+            binMap.put("E", 5);
+            client.put(null, testKey, binA, binB, binC, binD, binE);
 
-        Bin binA = new Bin("A", 1);
-        Bin binB = new Bin("B", 2);
-        Bin binC = new Bin("C", 3);
-        Bin binD = new Bin("D", 4);
-        Bin binE = new Bin("E", 5);
+            MockHttpServletResponse res = mockMVC.perform(
+                    get(ASTestUtils.addFilterBins(noBinEndpoint, returnBins)).contentType(MediaType.APPLICATION_JSON)
+                            .accept(currentMediaType)).andExpect(status().isOk()).andReturn().getResponse();
 
-        /* Only expect the names of bins we specify*/
-        binMap.put("A", 1);
-        binMap.put("B", 2);
-        binMap.put("E", 5);
-
-        client.put(null, this.testKey, binA, binB, binC, binD, binE);
-
-        /* Get the record and only fetch bins A, B, and E */
-        MockHttpServletResponse res = mockMVC.perform(
-                get(ASTestUtils.addFilterBins(noBinEndpoint, returnBins)).contentType(MediaType.APPLICATION_JSON)
-                        .accept(currentMediaType)).andExpect(status().isOk()).andReturn().getResponse();
-
-        Map<String, Object> resObject = recordDeserializer.getReturnedBins(res);
-
-        Assert.assertTrue(ASTestUtils.compareMapStringObj(resObject, binMap));
+            Map<String, Object> resObject = recordDeserializer.getReturnedBins(res);
+            Assertions.assertTrue(ASTestUtils.compareMapStringObj(resObject, binMap));
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
     /*
      * Test to ensure that a user can specify that the userKey is an integer by appending
      * the correct query parameter to a get request.
      */
-    @Test
-    public void TestIntegerKey() throws Exception {
-        Map<String, Object> binMap = new HashMap<>();
-        binMap.put("id", "integer");
-        keysToRemove.add(intKey);
+    @ParameterizedTest
+    @MethodSource("mappers")
+    public void TestIntegerKey(RecordDeserializer recordDeserializer, String currentMediaType, boolean useSet) throws Exception {
+        Key testKey = keyFor(useSet);
+        Key intKey = intKeyFor(useSet);
+        String intEndpoint = intEndpointFor(useSet);
+        try {
+            Map<String, Object> binMap = new HashMap<>();
+            binMap.put("id", "integer");
+            Bin idBin = new Bin("id", "integer");
+            client.put(null, intKey, idBin);
 
-        Bin idBin = new Bin("id", "integer");
-        client.put(null, intKey, idBin);
+            MockHttpServletResponse res = mockMVC.perform(
+                            get(intEndpoint).contentType(MediaType.APPLICATION_JSON).accept(currentMediaType))
+                    .andExpect(status().isOk())
+                    .andReturn()
+                    .getResponse();
 
-        MockHttpServletResponse res = mockMVC.perform(
-                        get(intEndpoint).contentType(MediaType.APPLICATION_JSON).accept(currentMediaType))
-                .andExpect(status().isOk())
-                .andReturn()
-                .getResponse();
-
-        Map<String, Object> resObject = recordDeserializer.getReturnedBins(res);
-
-        Assert.assertTrue(ASTestUtils.compareMapStringObj(resObject, binMap));
+            Map<String, Object> resObject = recordDeserializer.getReturnedBins(res);
+            Assertions.assertTrue(ASTestUtils.compareMapStringObj(resObject, binMap));
+        } finally {
+            client.delete(null, intKey);
+        }
     }
 
-    @Test
-    public void GetWithDigest() throws Exception {
-        Map<String, Object> binMap = new HashMap<>();
-        binMap.put("integer", 10);
-        Bin intBin = new Bin("integer", 10);
+    @ParameterizedTest
+    @MethodSource("mappers")
+    public void GetWithDigest(RecordDeserializer recordDeserializer, String currentMediaType, boolean useSet) throws Exception {
+        Key testKey = keyFor(useSet);
+        String digestEndpoint = digestEndpointFor(testKey, useSet);
+        try {
+            Map<String, Object> binMap = new HashMap<>();
+            binMap.put("integer", 10);
+            Bin intBin = new Bin("integer", 10);
+            client.put(null, testKey, intBin);
 
-        client.put(null, this.testKey, intBin);
+            MockHttpServletResponse res = mockMVC.perform(
+                            get(digestEndpoint).contentType(MediaType.APPLICATION_JSON).accept(currentMediaType))
+                    .andExpect(status().isOk())
+                    .andReturn()
+                    .getResponse();
 
-        MockHttpServletResponse res = mockMVC.perform(
-                        get(digestEndpoint).contentType(MediaType.APPLICATION_JSON).accept(currentMediaType))
-                .andExpect(status().isOk())
-                .andReturn()
-                .getResponse();
-
-        Map<String, Object> resObject = recordDeserializer.getReturnedBins(res);
-
-        Assert.assertTrue(ASTestUtils.compareMapStringObj(resObject, binMap));
+            Map<String, Object> resObject = recordDeserializer.getReturnedBins(res);
+            Assertions.assertTrue(ASTestUtils.compareMapStringObj(resObject, binMap));
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
-    @Test
-    public void TestBytesKey() throws Exception {
-        Map<String, Object> binMap = new HashMap<>();
-        keysToRemove.add(bytesKey);
-        Bin idBin = new Bin("id", "bytes");
-        client.put(null, bytesKey, idBin);
+    @ParameterizedTest
+    @MethodSource("mappers")
+    public void TestBytesKey(RecordDeserializer recordDeserializer, String currentMediaType, boolean useSet) throws Exception {
+        Key bytesKey = bytesKeyFor(useSet);
+        String bytesEndpoint = bytesEndpointFor(useSet);
+        try {
+            Map<String, Object> binMap = new HashMap<>();
+            Bin idBin = new Bin("id", "bytes");
+            client.put(null, bytesKey, idBin);
+            binMap.put("id", "bytes");
 
-        binMap.put("id", "bytes");
-        MockHttpServletResponse res = mockMVC.perform(
-                        get(bytesEndpoint).contentType(MediaType.APPLICATION_JSON).accept(currentMediaType))
-                .andExpect(status().isOk())
-                .andReturn()
-                .getResponse();
+            MockHttpServletResponse res = mockMVC.perform(
+                            get(bytesEndpoint).contentType(MediaType.APPLICATION_JSON).accept(currentMediaType))
+                    .andExpect(status().isOk())
+                    .andReturn()
+                    .getResponse();
 
-        Map<String, Object> resObject = recordDeserializer.getReturnedBins(res);
-
-        Assert.assertTrue(ASTestUtils.compareMapStringObj(resObject, binMap));
+            Map<String, Object> resObject = recordDeserializer.getReturnedBins(res);
+            Assertions.assertTrue(ASTestUtils.compareMapStringObj(resObject, binMap));
+        } finally {
+            client.delete(null, bytesKey);
+        }
     }
 
 }

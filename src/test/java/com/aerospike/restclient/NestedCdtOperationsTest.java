@@ -20,13 +20,15 @@ import com.aerospike.client.AerospikeClient;
 import com.aerospike.client.Bin;
 import com.aerospike.client.Key;
 import com.aerospike.restclient.util.AerospikeOperation;
-import org.junit.*;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.junit4.rules.SpringClassRule;
-import org.springframework.test.context.junit4.rules.SpringMethodRule;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
@@ -35,19 +37,16 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 
 import static com.aerospike.restclient.util.AerospikeAPIConstants.OPERATION_FIELD;
 import static com.aerospike.restclient.util.AerospikeAPIConstants.OPERATION_VALUES_FIELD;
 
-@RunWith(Parameterized.class)
 @SpringBootTest
 public class NestedCdtOperationsTest {
 
-    @ClassRule
-    public static final SpringClassRule springClassRule = new SpringClassRule();
-
-    @Rule
-    public final SpringMethodRule springMethodRule = new SpringMethodRule();
+    private static final Key testKey = new Key("test", "junit", "nested");
+    private static final String testEndpoint = ASTestUtils.buildEndpointV1("operate", "test", "junit", "nested");
 
     private MockMvc mockMVC;
 
@@ -57,15 +56,17 @@ public class NestedCdtOperationsTest {
     @Autowired
     private WebApplicationContext wac;
 
-    private final OperationV1Performer opPerformer;
-
-    private final Key testKey = new Key("test", "junit", "nested");
-    private final String testEndpoint = ASTestUtils.buildEndpointV1("operate", "test", "junit", "nested");
-
     private List<Object> l1, l2, l3, objectList;
     private Map<Object, Object> m1, m2, m3, objectMap;
 
-    @Before
+    public static Stream<Arguments> getParams() {
+        return Stream.of(
+                Arguments.of(new JSONOperationV1Performer()),
+                Arguments.of(new MsgPackOperationV1Performer())
+        );
+    }
+
+    @BeforeEach
     public void setup() {
         mockMVC = MockMvcBuilders.webAppContextSetup(wac).build();
 
@@ -116,25 +117,15 @@ public class NestedCdtOperationsTest {
         client.put(null, testKey, listBin, mapBin);
     }
 
-    @After
+    @AfterEach
     public void clean() {
         client.delete(null, testKey);
     }
 
-    @Parameterized.Parameters
-    public static Object[][] getParams() {
-        return new Object[][]{
-                {new JSONOperationV1Performer()}, {new MsgPackOperationV1Performer()}
-        };
-    }
-
-    public NestedCdtOperationsTest(OperationV1Performer performer) {
-        this.opPerformer = performer;
-    }
-
     @SuppressWarnings("unchecked")
-    @Test
-    public void testListAppendCdtListIndex() {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testListAppendCdtListIndex(OperationV1Performer opPerformer) {
         List<Map<String, Object>> opList = new ArrayList<>();
         Map<String, Object> opMap = new HashMap<>();
         Map<String, Object> opValues = new HashMap<>();
@@ -156,12 +147,13 @@ public class NestedCdtOperationsTest {
         List<Object> realList = (List<Object>) client.get(null, testKey).bins.get("list");
         l3.add(100);
 
-        Assert.assertTrue(ASTestUtils.compareCollection(objectList, realList));
+        Assertions.assertTrue(ASTestUtils.compareCollection(objectList, realList));
     }
 
     @SuppressWarnings("unchecked")
-    @Test
-    public void testListAppendCdtListValue() {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testListAppendCdtListValue(OperationV1Performer opPerformer) {
         List<Map<String, Object>> opList = new ArrayList<>();
         Map<String, Object> opMap = new HashMap<>();
         Map<String, Object> opValues = new HashMap<>();
@@ -184,12 +176,13 @@ public class NestedCdtOperationsTest {
         List<Object> realList = (List<Object>) client.get(null, testKey).bins.get("list");
         l2.add(100);
 
-        Assert.assertTrue(ASTestUtils.compareCollection(objectList, realList));
+        Assertions.assertTrue(ASTestUtils.compareCollection(objectList, realList));
     }
 
     @SuppressWarnings("unchecked")
-    @Test
-    public void testMapPutCdtMapKey() {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testMapPutCdtMapKey(OperationV1Performer opPerformer) {
         List<Map<String, Object>> opList = new ArrayList<>();
         Map<String, Object> operation = new HashMap<>();
         Map<String, Object> opValues = new HashMap<>();
@@ -213,12 +206,13 @@ public class NestedCdtOperationsTest {
         Map<Object, Object> realMapBin = (Map<Object, Object>) bins.get("map");
         m1.put("one", 11);
 
-        Assert.assertTrue(ASTestUtils.compareMap(realMapBin, objectMap));
+        Assertions.assertTrue(ASTestUtils.compareMap(realMapBin, objectMap));
     }
 
     @SuppressWarnings("unchecked")
-    @Test
-    public void testMapPutCdtMapRank() {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testMapPutCdtMapRank(OperationV1Performer opPerformer) {
         List<Map<String, Object>> opList = new ArrayList<>();
         Map<String, Object> operation = new HashMap<>();
         Map<String, Object> opValues = new HashMap<>();
@@ -242,12 +236,13 @@ public class NestedCdtOperationsTest {
         Map<Object, Object> realMapBin = (Map<Object, Object>) bins.get("map");
         m2.put("one", 11);
 
-        Assert.assertTrue(ASTestUtils.compareMap(realMapBin, objectMap));
+        Assertions.assertTrue(ASTestUtils.compareMap(realMapBin, objectMap));
     }
 
     @SuppressWarnings("unchecked")
-    @Test
-    public void testMapPutCdtMultipuleCTX() {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testMapPutCdtMultipuleCTX(OperationV1Performer opPerformer) {
         List<Map<String, Object>> opList = new ArrayList<>();
         Map<String, Object> operation = new HashMap<>();
         Map<String, Object> opValues = new HashMap<>();
@@ -276,6 +271,6 @@ public class NestedCdtOperationsTest {
         Map<Object, Object> realMapBin = (Map<Object, Object>) bins.get("map");
         m3.put("two", 11);
 
-        Assert.assertTrue(ASTestUtils.compareMap(realMapBin, objectMap));
+        Assertions.assertTrue(ASTestUtils.compareMap(realMapBin, objectMap));
     }
 }

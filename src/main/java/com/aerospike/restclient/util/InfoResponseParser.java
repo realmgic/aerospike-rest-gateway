@@ -103,10 +103,14 @@ public class InfoResponseParser {
 
     /* Convert a string of the type "k1=v1;k2=v2;k3=v3" into a map {k1:v1, k2:v2, k3:v3} */
     public static Map<String, String> getIndexStatInfo(String response) {
-        if (response.trim().startsWith("FAIL:201")) {
+        String trimmed = response != null ? response.trim() : "";
+        if (trimmed.startsWith("FAIL:201") || trimmed.startsWith("ERROR:201")) {
             throw new AerospikeException(ResultCode.INDEX_NOTFOUND);
         }
-        if (response.trim().startsWith("ns_type=unknown")) {
+        if (trimmed.startsWith("FAIL") || trimmed.startsWith("ERROR")) {
+            throw new AerospikeException(ResultCode.INDEX_NOTFOUND);
+        }
+        if (trimmed.startsWith("ns_type=unknown")) {
             throw new AerospikeException(ResultCode.INVALID_NAMESPACE, "Namespace for Index does not exist");
         }
 
@@ -118,8 +122,10 @@ public class InfoResponseParser {
         String[] kvPairs = keyValueString.trim().split(delimiter);
 
         for (String kvPair : kvPairs) {
-            String[] kvAry = kvPair.split("=");
-            indexMap.put(kvAry[0], kvAry[1]);
+            String[] kvAry = kvPair.split("=", 2);
+            if (kvAry.length >= 2) {
+                indexMap.put(kvAry[0].trim(), kvAry[1].trim());
+            }
         }
 
         return indexMap;

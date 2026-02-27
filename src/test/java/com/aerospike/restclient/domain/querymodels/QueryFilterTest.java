@@ -32,48 +32,45 @@ import com.aerospike.restclient.domain.geojsonmodels.Polygon;
 import com.aerospike.restclient.util.AerospikeAPIConstants;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.junit.Assert;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 
-@RunWith(Parameterized.class)
 public class QueryFilterTest {
 
-    private final IASTestMapper mapper;
+    private static final String bin = "test-bin";
 
-    private final String bin = "test-bin";
-
-    @Parameterized.Parameters
-    public static Object[] getParams() {
-        return new Object[]{
-                new JsonQueryBinFilterMapper(), new MsgPackQueryBinFilterMapper(),
-                };
+    static Stream<Arguments> getParams() {
+        return Stream.of(
+                Arguments.of(new JsonQueryBinFilterMapper()),
+                Arguments.of(new MsgPackQueryBinFilterMapper())
+        );
     }
 
-    public QueryFilterTest(IASTestMapper mapper) {
-        this.mapper = mapper;
-    }
-
-    @Test
-    public void testEmptyMapDoesNotMapToQueryBody() {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testEmptyMapDoesNotMapToQueryBody(IASTestMapper mapper) {
         Map<String, Object> ctxMap = new HashMap<>();
 
         try {
             mapper.bytesToObject(mapper.objectToBytes(ctxMap));
-            Assert.fail("Should have not mapped to CTX");
+            Assertions.fail("Should have not mapped to CTX");
         } catch (Exception e) {
             // Success
         }
     }
 
-    @Test
-    public void testMapsToQueryStringEqualFilter() {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testMapsToQueryStringEqualFilter(IASTestMapper mapper) {
         Map<String, Object> filterMap = new HashMap<>();
         filterMap.put("type", AerospikeAPIConstants.QueryFilterTypes.EQUAL_STRING);
         filterMap.put("binName", bin);
@@ -84,18 +81,19 @@ public class QueryFilterTest {
         try {
             QueryEqualsStringFilter restCTX = (QueryEqualsStringFilter) mapper.bytesToObject(
                     mapper.objectToBytes(filterMap));
-            Assert.assertEquals(AerospikeAPIConstants.QueryFilterTypes.EQUAL_STRING, restCTX.type);
-            Assert.assertEquals(bin, restCTX.binName);
-            Assert.assertEquals("str", restCTX.value);
+            Assertions.assertEquals(AerospikeAPIConstants.QueryFilterTypes.EQUAL_STRING, restCTX.type);
+            Assertions.assertEquals(bin, restCTX.binName);
+            Assertions.assertEquals("str", restCTX.value);
             ASTestUtils.compareCollection(new ArrayList<CTX>() {
             }, restCTX.ctx);
         } catch (Exception e) {
-            Assert.fail(String.format("Should have mapped to QueryBinFilter %s", e));
+            Assertions.fail(String.format("Should have mapped to QueryBinFilter %s", e));
         }
     }
 
-    @Test
-    public void testMapsToQueryLongEqualFilter() {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testMapsToQueryLongEqualFilter(IASTestMapper mapper) {
         Map<String, Object> filterMap = new HashMap<>();
         filterMap.put("type", AerospikeAPIConstants.QueryFilterTypes.EQUAL_LONG);
         filterMap.put("binName", bin);
@@ -105,13 +103,13 @@ public class QueryFilterTest {
 
         try {
             QueryEqualLongFilter restCTX = (QueryEqualLongFilter) mapper.bytesToObject(mapper.objectToBytes(filterMap));
-            Assert.assertEquals(AerospikeAPIConstants.QueryFilterTypes.EQUAL_LONG, restCTX.type);
-            Assert.assertEquals(bin, restCTX.binName);
-            Assert.assertEquals(Long.valueOf(1), restCTX.value);
+            Assertions.assertEquals(AerospikeAPIConstants.QueryFilterTypes.EQUAL_LONG, restCTX.type);
+            Assertions.assertEquals(bin, restCTX.binName);
+            Assertions.assertEquals(Long.valueOf(1), restCTX.value);
             ASTestUtils.compareCollection(new ArrayList<CTX>() {
             }, restCTX.ctx);
         } catch (Exception e) {
-            Assert.fail(String.format("Should have mapped to QueryBinFilter %s", e));
+            Assertions.fail(String.format("Should have mapped to QueryBinFilter %s", e));
         }
     }
 
@@ -145,8 +143,9 @@ public class QueryFilterTest {
         ASTestUtils.compareFilter(expected, restClientFilter.toFilter());
     }
 
-    @Test
-    public void testMapsToQueryBinRangeFilter() {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testMapsToQueryBinRangeFilter(IASTestMapper mapper) {
         Map<String, Object> filterMap = new HashMap<>();
         filterMap.put("type", AerospikeAPIConstants.QueryFilterTypes.RANGE);
         filterMap.put("binName", bin);
@@ -157,15 +156,15 @@ public class QueryFilterTest {
 
         try {
             QueryRangeFilter restCTX = (QueryRangeFilter) mapper.bytesToObject(mapper.objectToBytes(filterMap));
-            Assert.assertEquals(AerospikeAPIConstants.QueryFilterTypes.RANGE, restCTX.type);
-            Assert.assertEquals(bin, restCTX.binName);
-            Assert.assertEquals(1, restCTX.begin);
-            Assert.assertEquals(99, restCTX.end);
-            Assert.assertEquals(IndexCollectionType.DEFAULT, restCTX.collectionType);
+            Assertions.assertEquals(AerospikeAPIConstants.QueryFilterTypes.RANGE, restCTX.type);
+            Assertions.assertEquals(bin, restCTX.binName);
+            Assertions.assertEquals(1, restCTX.begin);
+            Assertions.assertEquals(99, restCTX.end);
+            Assertions.assertEquals(IndexCollectionType.DEFAULT, restCTX.collectionType);
             ASTestUtils.compareCollection(new ArrayList<CTX>() {
             }, restCTX.ctx);
         } catch (Exception e) {
-            Assert.fail(String.format("Should have mapped to QueryBinFilter %s", e));
+            Assertions.fail(String.format("Should have mapped to QueryBinFilter %s", e));
         }
     }
 
@@ -186,8 +185,9 @@ public class QueryFilterTest {
         ASTestUtils.compareFilter(expected, restClientFilter.toFilter());
     }
 
-    @Test
-    public void testMapsToQueryBinContainsFilter() {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testMapsToQueryBinContainsFilter(IASTestMapper mapper) {
         Map<String, Object> filterMap = new HashMap<>();
         filterMap.put("type", AerospikeAPIConstants.QueryFilterTypes.CONTAINS_LONG);
         filterMap.put("binName", bin);
@@ -198,14 +198,14 @@ public class QueryFilterTest {
         try {
             QueryContainsLongFilter restCTX = (QueryContainsLongFilter) mapper.bytesToObject(
                     mapper.objectToBytes(filterMap));
-            Assert.assertEquals(AerospikeAPIConstants.QueryFilterTypes.CONTAINS_LONG, restCTX.type);
-            Assert.assertEquals(bin, restCTX.binName);
-            Assert.assertEquals(Long.valueOf(1), restCTX.value);
-            Assert.assertEquals(IndexCollectionType.DEFAULT, restCTX.collectionType);
+            Assertions.assertEquals(AerospikeAPIConstants.QueryFilterTypes.CONTAINS_LONG, restCTX.type);
+            Assertions.assertEquals(bin, restCTX.binName);
+            Assertions.assertEquals(Long.valueOf(1), restCTX.value);
+            Assertions.assertEquals(IndexCollectionType.DEFAULT, restCTX.collectionType);
             ASTestUtils.compareCollection(new ArrayList<CTX>() {
             }, restCTX.ctx);
         } catch (Exception e) {
-            Assert.fail(String.format("Should have mapped to QueryBinFilter %s", e));
+            Assertions.fail(String.format("Should have mapped to QueryBinFilter %s", e));
         }
     }
 
@@ -241,8 +241,9 @@ public class QueryFilterTest {
         ASTestUtils.compareFilter(expected, restClientFilter.toFilter());
     }
 
-    @Test
-    public void testMapsToQueryBinGeoWithinRegionFilter() {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testMapsToQueryBinGeoWithinRegionFilter(IASTestMapper mapper) {
         Map<String, Object> filterMap = new HashMap<>();
         double[][] coord = new double[][]{
                 new double[]{1, 2}, new double[]{3, 4}, new double[]{4, 5},
@@ -261,14 +262,14 @@ public class QueryFilterTest {
         try {
             QueryGeoWithinPolygonFilter restCTX = (QueryGeoWithinPolygonFilter) mapper.bytesToObject(
                     mapper.objectToBytes(filterMap));
-            Assert.assertEquals(AerospikeAPIConstants.QueryFilterTypes.GEOWITHIN_REGION, restCTX.type);
-            Assert.assertEquals(bin, restCTX.binName);
-            Assert.assertEquals(expectedLngLat, restCTX.polygon);
-            Assert.assertEquals(IndexCollectionType.DEFAULT, restCTX.collectionType);
+            Assertions.assertEquals(AerospikeAPIConstants.QueryFilterTypes.GEOWITHIN_REGION, restCTX.type);
+            Assertions.assertEquals(bin, restCTX.binName);
+            Assertions.assertEquals(expectedLngLat, restCTX.polygon);
+            Assertions.assertEquals(IndexCollectionType.DEFAULT, restCTX.collectionType);
             ASTestUtils.compareCollection(new ArrayList<CTX>() {
             }, restCTX.ctx);
         } catch (Exception e) {
-            Assert.fail(String.format("Should have mapped to QueryBinFilter %s", e));
+            Assertions.fail(String.format("Should have mapped to QueryBinFilter %s", e));
         }
     }
 
@@ -292,8 +293,9 @@ public class QueryFilterTest {
         ASTestUtils.compareFilter(expected, restClientFilter.toFilter());
     }
 
-    @Test
-    public void testMapsToQueryBinGeoWithinRadiusFilter() {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testMapsToQueryBinGeoWithinRadiusFilter(IASTestMapper mapper) {
         Map<String, Object> filterMap = new HashMap<>();
         List<Object> circle = new ArrayList<>();
         filterMap.put("type", AerospikeAPIConstants.QueryFilterTypes.GEOWITHIN_RADIUS);
@@ -307,16 +309,16 @@ public class QueryFilterTest {
         try {
             QueryGeoWithinRadiusFilter restCTX = (QueryGeoWithinRadiusFilter) mapper.bytesToObject(
                     mapper.objectToBytes(filterMap));
-            Assert.assertEquals(AerospikeAPIConstants.QueryFilterTypes.GEOWITHIN_RADIUS, restCTX.type);
-            Assert.assertEquals(bin, restCTX.binName);
-            Assert.assertEquals(1.2345, restCTX.circle.latLng.longitude, 0);
-            Assert.assertEquals(6.789, restCTX.circle.latLng.latitude, 0);
-            Assert.assertEquals(3.14159, restCTX.circle.radius, 0);
-            Assert.assertEquals(IndexCollectionType.DEFAULT, restCTX.collectionType);
+            Assertions.assertEquals(AerospikeAPIConstants.QueryFilterTypes.GEOWITHIN_RADIUS, restCTX.type);
+            Assertions.assertEquals(bin, restCTX.binName);
+            Assertions.assertEquals(1.2345, restCTX.circle.latLng.longitude, 0);
+            Assertions.assertEquals(6.789, restCTX.circle.latLng.latitude, 0);
+            Assertions.assertEquals(3.14159, restCTX.circle.radius, 0);
+            Assertions.assertEquals(IndexCollectionType.DEFAULT, restCTX.collectionType);
             ASTestUtils.compareCollection(new ArrayList<CTX>() {
             }, restCTX.ctx);
         } catch (Exception e) {
-            Assert.fail(String.format("Should have mapped to QueryBinFilter %s", e));
+            Assertions.fail(String.format("Should have mapped to QueryBinFilter %s", e));
         }
     }
 
@@ -336,8 +338,9 @@ public class QueryFilterTest {
         ASTestUtils.compareFilter(expected, restClientFilter.toFilter());
     }
 
-    @Test
-    public void testMapsToQueryBinGeoContainsPointFilter() {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testMapsToQueryBinGeoContainsPointFilter(IASTestMapper mapper) {
         Map<String, Object> filterMap = new HashMap<>();
         filterMap.put("type", AerospikeAPIConstants.QueryFilterTypes.GEOCONTAINS_POINT);
         filterMap.put("binName", bin);
@@ -348,14 +351,14 @@ public class QueryFilterTest {
         try {
             QueryGeoContainsPointFilter restCTX = (QueryGeoContainsPointFilter) mapper.bytesToObject(
                     mapper.objectToBytes(filterMap));
-            Assert.assertEquals(AerospikeAPIConstants.QueryFilterTypes.GEOCONTAINS_POINT, restCTX.type);
-            Assert.assertEquals(bin, restCTX.binName);
-            Assert.assertEquals(new LngLat(1.2, 2.3), restCTX.point);
-            Assert.assertEquals(IndexCollectionType.DEFAULT, restCTX.collectionType);
+            Assertions.assertEquals(AerospikeAPIConstants.QueryFilterTypes.GEOCONTAINS_POINT, restCTX.type);
+            Assertions.assertEquals(bin, restCTX.binName);
+            Assertions.assertEquals(new LngLat(1.2, 2.3), restCTX.point);
+            Assertions.assertEquals(IndexCollectionType.DEFAULT, restCTX.collectionType);
             ASTestUtils.compareCollection(new ArrayList<CTX>() {
             }, restCTX.ctx);
         } catch (Exception e) {
-            Assert.fail(String.format("Should have mapped to QueryBinFilter %s", e));
+            Assertions.fail(String.format("Should have mapped to QueryBinFilter %s", e));
         }
     }
 

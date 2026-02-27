@@ -23,14 +23,13 @@ import com.aerospike.client.query.IndexType;
 import com.aerospike.restclient.domain.RestClientIndex;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.junit4.SpringRunner;
+
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
@@ -43,7 +42,6 @@ import java.util.Map;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@RunWith(SpringRunner.class)
 @SpringBootTest
 public class SindexTestsError {
 
@@ -75,13 +73,13 @@ public class SindexTestsError {
     private AerospikeClient client;
 
     /* create and load an index*/
-    @Before
+    @BeforeEach
     public void setup() throws InterruptedException {
         mockMVC = MockMvcBuilders.webAppContextSetup(wac).build();
         createdIndexPairs = new ArrayList<String[]>();
     }
 
-    @After
+    @AfterEach
     public void tearDown() {
         for (String[] idxPair : createdIndexPairs) {
             ASTestUtils.ensureDeletion(client, idxPair[0], idxPair[1]);

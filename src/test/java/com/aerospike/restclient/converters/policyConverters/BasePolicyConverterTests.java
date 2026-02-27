@@ -20,9 +20,9 @@ import com.aerospike.client.policy.Policy;
 import com.aerospike.client.policy.Replica;
 import com.aerospike.restclient.util.AerospikeAPIConstants;
 import com.aerospike.restclient.util.converters.policyconverters.PolicyConverter;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -31,7 +31,7 @@ public class BasePolicyConverterTests {
 
     Map<String, String> policyMap;
 
-    @Before
+    @BeforeEach
     public void setup() {
         policyMap = new HashMap<>();
     }
@@ -40,41 +40,41 @@ public class BasePolicyConverterTests {
     public void testReplica() {
         policyMap.put(AerospikeAPIConstants.REPLICA, Replica.MASTER.toString());
         Policy policy = PolicyConverter.policyFromMap(policyMap);
-        Assert.assertEquals(policy.replica, Replica.MASTER);
+        Assertions.assertEquals(policy.replica, Replica.MASTER);
     }
 
     @Test
     public void testTotalTimeout() {
         policyMap.put(AerospikeAPIConstants.TOTAL_TIMEOUT, "333");
         Policy policy = PolicyConverter.policyFromMap(policyMap);
-        Assert.assertEquals(policy.totalTimeout, 333);
+        Assertions.assertEquals(policy.totalTimeout, 333);
     }
 
     @Test
     public void testSocketTimeout() {
         policyMap.put(AerospikeAPIConstants.SOCKET_TIMEOUT, "332");
         Policy policy = PolicyConverter.policyFromMap(policyMap);
-        Assert.assertEquals(policy.socketTimeout, 332);
+        Assertions.assertEquals(policy.socketTimeout, 332);
     }
 
     @Test
     public void testSleepBetweenRetries() {
         policyMap.put(AerospikeAPIConstants.SLEEP_BETWEEN_RETRIES, "111");
         Policy policy = PolicyConverter.policyFromMap(policyMap);
-        Assert.assertEquals(policy.sleepBetweenRetries, 111);
+        Assertions.assertEquals(policy.sleepBetweenRetries, 111);
     }
 
     @Test
     public void testMaxRetries() {
         policyMap.put(AerospikeAPIConstants.MAX_RETRIES, "5");
         Policy policy = PolicyConverter.policyFromMap(policyMap);
-        Assert.assertEquals(policy.maxRetries, 5);
+        Assertions.assertEquals(policy.maxRetries, 5);
     }
 
     @Test
     public void testSendKey() {
         policyMap.put(AerospikeAPIConstants.SEND_KEY, "true");
         Policy policy = PolicyConverter.policyFromMap(policyMap);
-        Assert.assertTrue(policy.sendKey);
+        Assertions.assertTrue(policy.sendKey);
     }
 }

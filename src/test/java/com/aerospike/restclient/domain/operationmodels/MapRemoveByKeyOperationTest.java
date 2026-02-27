@@ -16,15 +16,15 @@
  */
 package com.aerospike.restclient.domain.operationmodels;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 public class MapRemoveByKeyOperationTest {
     @Test
     public void isInverted() {
         MapRemoveByKeyOperation op = new MapRemoveByKeyOperation("bin", "key", MapReturnType.RANK);
-        Assert.assertFalse(op.isInverted());
+        Assertions.assertFalse(op.isInverted());
         op.setInverted(true);
-        Assert.assertTrue(op.isInverted());
+        Assertions.assertTrue(op.isInverted());
     }
 }

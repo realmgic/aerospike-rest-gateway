@@ -21,60 +21,58 @@ import com.aerospike.restclient.IASTestMapper;
 import com.aerospike.restclient.config.JSONMessageConverter;
 import com.aerospike.restclient.config.MsgPackConverter;
 import com.aerospike.restclient.util.AerospikeAPIConstants;
-import org.junit.Assert;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 
-@RunWith(Parameterized.class)
 public class GeoJSONTest {
 
-    private final IASTestMapper mapper;
-
-    @Parameterized.Parameters
-    public static Object[] getParams() {
-        return new Object[]{
-                new JsonGeoJSONMapper(), new MsgPackGeoJSONMapper()
-        };
+    static Stream<Arguments> getParams() {
+        return Stream.of(
+                Arguments.of(new JsonGeoJSONMapper()),
+                Arguments.of(new MsgPackGeoJSONMapper())
+        );
     }
 
-    public GeoJSONTest(IASTestMapper mapper) {
-        this.mapper = mapper;
-    }
-
-    @Test
-    public void testEmptyMapDoesNotMapToGeoJSON() {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testEmptyMapDoesNotMapToGeoJSON(IASTestMapper mapper) {
         Map<String, Object> geoMap = new HashMap<>();
 
         try {
             mapper.bytesToObject(mapper.objectToBytes(geoMap));
-            Assert.fail("Should have not mapped to RestClientCTX");
+            Assertions.fail("Should have not mapped to RestClientCTX");
         } catch (Exception e) {
             // Success
         }
     }
 
-    @Test
-    public void testMapsToPoint() {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testMapsToPoint(IASTestMapper mapper) {
         Map<String, Object> geoMap = new HashMap<>();
         geoMap.put("type", AerospikeAPIConstants.GeoJSON.Types.POINT);
         geoMap.put("coordinates", new double[]{1.2, 2.6});
 
         try {
             Point restGeo = (Point) mapper.bytesToObject(mapper.objectToBytes(geoMap));
-            Assert.assertEquals(new LngLat(1.2, 2.6), restGeo.coordinates);
+            Assertions.assertEquals(new LngLat(1.2, 2.6), restGeo.coordinates);
         } catch (Exception e) {
-            Assert.fail(String.format("Should have mapped to GeoJSON %s", e));
+            Assertions.fail(String.format("Should have mapped to GeoJSON %s", e));
         }
     }
 
-    @Test
-    public void testMapsToPolygon() {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testMapsToPolygon(IASTestMapper mapper) {
         Map<String, Object> geoMap = new HashMap<>();
         geoMap.put("type", AerospikeAPIConstants.GeoJSON.Types.POLYGON);
         geoMap.put("coordinates", new double[][]{new double[]{1.2, 2.6}, new double[]{3, 4}});
@@ -84,23 +82,24 @@ public class GeoJSONTest {
 
         try {
             Polygon restGeo = (Polygon) mapper.bytesToObject(mapper.objectToBytes(geoMap));
-            Assert.assertEquals(expectedCoord, restGeo.coordinates);
+            Assertions.assertEquals(expectedCoord, restGeo.coordinates);
         } catch (Exception e) {
-            Assert.fail(String.format("Should have mapped to GeoJSON %s", e));
+            Assertions.fail(String.format("Should have mapped to GeoJSON %s", e));
         }
     }
 
-    @Test
-    public void testMapsToAeroCircle() {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testMapsToAeroCircle(IASTestMapper mapper) {
         Map<String, Object> geoMap = new HashMap<>();
         geoMap.put("type", AerospikeAPIConstants.GeoJSON.Types.AERO_CIRCLE);
         geoMap.put("coordinates", new Object[]{new double[]{1.2, 2.6}, 3});
 
         try {
             AeroCircle restGeo = (AeroCircle) mapper.bytesToObject(mapper.objectToBytes(geoMap));
-            Assert.assertEquals(new LngLatRad(1.2, 2.6, 3), restGeo.coordinates);
+            Assertions.assertEquals(new LngLatRad(1.2, 2.6, 3), restGeo.coordinates);
         } catch (Exception e) {
-            Assert.fail(String.format("Should have mapped to GeoJSON %s", e));
+            Assertions.fail(String.format("Should have mapped to GeoJSON %s", e));
         }
     }
 

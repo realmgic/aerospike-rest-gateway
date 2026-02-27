@@ -22,43 +22,39 @@ import com.aerospike.restclient.ASTestMapper;
 import com.aerospike.restclient.config.JSONMessageConverter;
 import com.aerospike.restclient.config.MsgPackConverter;
 import com.aerospike.restclient.domain.RestClientKeyRecord;
-import org.junit.Assert;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+
 
 import java.util.List;
+import java.util.stream.Stream;
 
-@RunWith(Parameterized.class)
 public class QueryResponseBodyTest {
 
-    ASTestMapper mapper;
-
-    @Parameterized.Parameters
-    public static Object[] getParams() {
-        return new Object[]{
-                new JsonQueryResponseMapper(), new MsgPackQueryResponseMapper(),
-                };
+    static Stream<Arguments> getParams() {
+        return Stream.of(
+                Arguments.of(new JsonQueryResponseMapper()),
+                Arguments.of(new MsgPackQueryResponseMapper())
+        );
     }
 
-    public QueryResponseBodyTest(ASTestMapper mapper) {
-        this.mapper = mapper;
-    }
-
-    @Test
-    public void testRestClientQueryResponseAddRecords() {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testRestClientQueryResponseAddRecords(ASTestMapper mapper) {
         QueryResponseBody restQuery = new QueryResponseBody(10);
 
         for (int i = 0; i < 10; i++) {
             restQuery.addRecord(new RestClientKeyRecord(new Key("ns", "set", "key" + i), new Record(null, 0, 0)));
         }
 
-        Assert.assertEquals(10, restQuery.size());
+        Assertions.assertEquals(10, restQuery.size());
 
         List<RestClientKeyRecord> actualRecs = restQuery.getRecords();
 
         for (int i = 0; i < 10; i++) {
-            Assert.assertEquals("key" + i, actualRecs.get(i).userKey);
+            Assertions.assertEquals("key" + i, actualRecs.get(i).userKey);
         }
     }
 }

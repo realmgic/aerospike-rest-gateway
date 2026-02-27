@@ -20,37 +20,39 @@ import com.aerospike.restclient.util.AerospikeAPIConstants;
 import com.aerospike.restclient.util.AerospikeOperation;
 import com.aerospike.restclient.util.RestClientErrors.InvalidOperationError;
 import com.aerospike.restclient.util.converters.OperationConverter;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.util.HashMap;
 import java.util.Map;
 
 public class OperationConverterErrors {
 
-    @Test(expected = InvalidOperationError.class)
+    @Test
     public void testUnknownOp() {
         Map<String, Object> op = new HashMap<>();
         op.put(AerospikeAPIConstants.OPERATION_FIELD, "the_board_game");
-        OperationConverter.convertMapToOperation(op);
+        assertThrows(InvalidOperationError.class, () -> OperationConverter.convertMapToOperation(op));
     }
 
-    @Test(expected = InvalidOperationError.class)
+    @Test
     public void testOperationWithoutOperationKey() {
         Map<String, Object> op = new HashMap<>();
-        OperationConverter.convertMapToOperation(op);
+        assertThrows(InvalidOperationError.class, () -> OperationConverter.convertMapToOperation(op));
     }
 
-    @Test(expected = InvalidOperationError.class)
+    @Test
     public void testMissingOpValues() {
         Map<String, Object> op = new HashMap<>();
         op.put(AerospikeAPIConstants.OPERATION_FIELD, AerospikeOperation.READ);
-        OperationConverter.convertMapToOperation(op);
+        assertThrows(InvalidOperationError.class, () -> OperationConverter.convertMapToOperation(op));
     }
 
     /*
      * If the user accidentally provides an extra key at the top level, we should error out.
      */
-    @Test(expected = InvalidOperationError.class)
+    @Test
     public void testAdditionalTopLevelValue() {
         Map<String, Object> opValues = new HashMap<>();
         Map<String, Object> op = new HashMap<>();
@@ -58,10 +60,10 @@ public class OperationConverterErrors {
         op.put("An Extra", "Field");
         opValues.put("bin", "binname");
         op.put(AerospikeAPIConstants.OPERATION_VALUES_FIELD, opValues);
-        OperationConverter.convertMapToOperation(op);
+        assertThrows(InvalidOperationError.class, () -> OperationConverter.convertMapToOperation(op));
     }
 
-    @Test(expected = InvalidOperationError.class)
+    @Test
     public void testMissingValueInOpvalue() {
         /*
          * This should look like {
@@ -75,10 +77,10 @@ public class OperationConverterErrors {
         op.put(AerospikeAPIConstants.OPERATION_FIELD, AerospikeOperation.READ);
         Map<String, Object> op_values = new HashMap<>();
         op.put(AerospikeAPIConstants.OPERATION_VALUES_FIELD, op_values);
-        OperationConverter.convertMapToOperation(op);
+        assertThrows(InvalidOperationError.class, () -> OperationConverter.convertMapToOperation(op));
     }
 
-    @Test(expected = InvalidOperationError.class)
+    @Test
     public void testExtraValueInOpValue() {
         /*
          * This should look like {
@@ -94,10 +96,10 @@ public class OperationConverterErrors {
         op_values.put("bin", "binname");
         op_values.put("extra_val", "arbitrary");
         op.put(AerospikeAPIConstants.OPERATION_VALUES_FIELD, op_values);
-        OperationConverter.convertMapToOperation(op);
+        assertThrows(InvalidOperationError.class, () -> OperationConverter.convertMapToOperation(op));
     }
 
-    @Test(expected = InvalidOperationError.class)
+    @Test
     public void testStringValueIsNonString() {
         /*
          * This should look like {
@@ -113,10 +115,10 @@ public class OperationConverterErrors {
         op_values.put("bin", 3.14);
         op.put(AerospikeAPIConstants.OPERATION_VALUES_FIELD, op_values);
 
-        OperationConverter.convertMapToOperation(op);
+        assertThrows(InvalidOperationError.class, () -> OperationConverter.convertMapToOperation(op));
     }
 
-    @Test(expected = InvalidOperationError.class)
+    @Test
     public void testIntegerValueIsNonInt() {
         /*
          * This should look like {
@@ -133,6 +135,6 @@ public class OperationConverterErrors {
         op_values.put("index", "notanumber");
 
         op.put(AerospikeAPIConstants.OPERATION_VALUES_FIELD, op_values);
-        OperationConverter.convertMapToOperation(op);
+        assertThrows(InvalidOperationError.class, () -> OperationConverter.convertMapToOperation(op));
     }
 }

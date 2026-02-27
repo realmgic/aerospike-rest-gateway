@@ -23,9 +23,9 @@ import com.aerospike.restclient.util.converters.BinConverter;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import gnu.crypto.util.Base64;
-import org.junit.Assert;
-import org.junit.Ignore;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -91,7 +91,7 @@ public class BinConverterTests {
         Map<String, Object> binMap = new HashMap<>();
         binMap.put("bin1", new GeoJSONValue("{\"coordinates\": [-122.0, 37.5], \"type\": \"Point\"}"));
         Bin[] bins = BinConverter.binsFromMap(binMap);
-        Assert.assertTrue(binsContain(bins, testBin));
+        Assertions.assertTrue(binsContain(bins, testBin));
     }
 
     @Test
@@ -100,7 +100,7 @@ public class BinConverterTests {
         Map<String, Object> binMap = new HashMap<>();
         binMap.put("bin1", null);
         Bin[] bins = BinConverter.binsFromMap(binMap);
-        Assert.assertTrue(binsContain(bins, testBin));
+        Assertions.assertTrue(binsContain(bins, testBin));
     }
 
     @Test
@@ -113,10 +113,10 @@ public class BinConverterTests {
         binMap.put(bin2.name, bin2.value.getObject());
 
         Bin[] bins = BinConverter.binsFromMap(binMap);
-        Assert.assertEquals(2, bins.length);
+        Assertions.assertEquals(2, bins.length);
 
-        Assert.assertTrue(binsContain(bins, bin1));
-        Assert.assertTrue(binsContain(bins, bin2));
+        Assertions.assertTrue(binsContain(bins, bin1));
+        Assertions.assertTrue(binsContain(bins, bin2));
 
     }
 
@@ -130,10 +130,10 @@ public class BinConverterTests {
         Map<String, Object> binMap = new HashMap<>();
         binMap.put("bin1", testMap);
         Bin[] bins = BinConverter.binsFromMap(binMap);
-        Assert.assertTrue(binsContain(bins, testBin));
+        Assertions.assertTrue(binsContain(bins, testBin));
     }
 
-    @Ignore("Fails. Will pass if we ever support geojson nested in CDTs with json. Currently, only supported using msgpack.")
+    @Disabled("Fails. Will pass if we ever support geojson nested in CDTs with json. Currently, only supported using msgpack.")
     @Test
     public void testNestedGeoJSON() throws JsonProcessingException {
         ObjectMapper mapper = new ObjectMapper();
@@ -149,7 +149,7 @@ public class BinConverterTests {
         Map<String, Object> binMap = new HashMap<>();
         binMap.put("bin1", mapBin);
         Bin[] bins = BinConverter.binsFromMap(binMap);
-        Assert.assertTrue(binsContain(bins, testBin));
+        Assertions.assertTrue(binsContain(bins, testBin));
     }
 
     @Test
@@ -163,7 +163,7 @@ public class BinConverterTests {
         Map<String, Object> binMap = new HashMap<>();
         binMap.put("bin1", testMap);
         Bin[] bins = BinConverter.binsFromMap(binMap);
-        Assert.assertTrue(binsContain(bins, testBin));
+        Assertions.assertTrue(binsContain(bins, testBin));
     }
 
     @Test
@@ -177,7 +177,7 @@ public class BinConverterTests {
         Map<String, Object> binMap = new HashMap<>();
         binMap.put("bin1", testMap);
         Bin[] bins = BinConverter.binsFromMap(binMap);
-        Assert.assertTrue(binsContain(bins, testBin));
+        Assertions.assertTrue(binsContain(bins, testBin));
     }
 
     private void singleObjectBinTest(Object binValue) {
@@ -185,7 +185,7 @@ public class BinConverterTests {
         Map<String, Object> binMap = new HashMap<>();
         binMap.put("bin1", binValue);
         Bin[] bins = BinConverter.binsFromMap(binMap);
-        Assert.assertTrue(binsContain(bins, testBin));
+        Assertions.assertTrue(binsContain(bins, testBin));
     }
 
     private boolean binsContain(Bin[] bins, Bin target) {

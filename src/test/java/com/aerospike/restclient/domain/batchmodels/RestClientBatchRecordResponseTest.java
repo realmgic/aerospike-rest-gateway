@@ -21,9 +21,9 @@ import com.aerospike.client.Record;
 import com.aerospike.client.ResultCode;
 import com.aerospike.restclient.ASTestUtils;
 import com.aerospike.restclient.domain.RestClientRecord;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -35,7 +35,7 @@ public class RestClientBatchRecordResponseTest {
     private Record testRecord;
     private final Key testKey = new Key(ns, set, "key");
 
-    @Before
+    @BeforeEach
     public void setUpRecord() {
         Map<String, Object> binMap = new HashMap<>();
         binMap.put("bin1", "val1");
@@ -55,7 +55,7 @@ public class RestClientBatchRecordResponseTest {
 
         BatchRecordResponse response = new BatchRecordResponse(nullRecordRead);
 
-        Assert.assertNull(response.record);
+        Assertions.assertNull(response.record);
     }
 
     @Test
@@ -64,7 +64,7 @@ public class RestClientBatchRecordResponseTest {
 
         BatchRecordResponse response = new BatchRecordResponse(nullRecordRead);
 
-        Assert.assertNull(response.record);
+        Assertions.assertNull(response.record);
     }
 
     @Test
@@ -73,7 +73,7 @@ public class RestClientBatchRecordResponseTest {
 
         BatchRecordResponse response = new BatchRecordResponse(nullRecordRead);
 
-        Assert.assertNull(response.record);
+        Assertions.assertNull(response.record);
     }
 
     @Test
@@ -82,10 +82,10 @@ public class RestClientBatchRecordResponseTest {
                 ResultCode.MAX_ERROR_RATE, true, true);
         BatchRecordResponse response = new BatchRecordResponse(nullRecordRead);
         Key convertedKey = response.key.toKey();
-        Assert.assertTrue(ASTestUtils.compareKeys(testKey, convertedKey));
-        Assert.assertEquals(response.resultCode, ResultCode.MAX_ERROR_RATE);
-        Assert.assertEquals(response.resultCodeString, ResultCode.getResultString(ResultCode.MAX_ERROR_RATE));
-        Assert.assertTrue(response.inDoubt);
+        Assertions.assertTrue(ASTestUtils.compareKeys(testKey, convertedKey));
+        Assertions.assertEquals(response.resultCode, ResultCode.MAX_ERROR_RATE);
+        Assertions.assertEquals(response.resultCodeString, ResultCode.getResultString(ResultCode.MAX_ERROR_RATE));
+        Assertions.assertTrue(response.inDoubt);
     }
 
     @Test
@@ -95,12 +95,12 @@ public class RestClientBatchRecordResponseTest {
         BatchRecordResponse response = new BatchRecordResponse(batchRecord);
 
         RestClientRecord convertedRecord = response.record;
-        Assert.assertEquals(convertedRecord.bins, testRecord.bins);
-        Assert.assertEquals(convertedRecord.ttl, testRecord.getTimeToLive());
-        Assert.assertEquals(convertedRecord.generation, testRecord.generation);
-        Assert.assertEquals(response.resultCode, ResultCode.MAX_ERROR_RATE);
-        Assert.assertEquals(response.resultCodeString, ResultCode.getResultString(ResultCode.MAX_ERROR_RATE));
-        Assert.assertFalse(response.inDoubt);
+        Assertions.assertEquals(convertedRecord.bins, testRecord.bins);
+        Assertions.assertEquals(convertedRecord.ttl, testRecord.getTimeToLive());
+        Assertions.assertEquals(convertedRecord.generation, testRecord.generation);
+        Assertions.assertEquals(response.resultCode, ResultCode.MAX_ERROR_RATE);
+        Assertions.assertEquals(response.resultCodeString, ResultCode.getResultString(ResultCode.MAX_ERROR_RATE));
+        Assertions.assertFalse(response.inDoubt);
     }
 
     private com.aerospike.client.BatchRead getBatchRead(Key key, String[] bins, boolean readAllbins, Record record) {

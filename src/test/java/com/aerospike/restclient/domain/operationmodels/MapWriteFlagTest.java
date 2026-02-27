@@ -17,35 +17,29 @@
 package com.aerospike.restclient.domain.operationmodels;
 
 import com.aerospike.client.cdt.MapWriteFlags;
-import org.junit.Assert;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
-@RunWith(Parameterized.class)
+import java.util.stream.Stream;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
 public class MapWriteFlagTest {
 
-    @Parameterized.Parameters
-    public static Object[][] getParams() {
-        return new Object[][]{
-                new Object[]{MapWriteFlag.DEFAULT, MapWriteFlags.DEFAULT},
-                new Object[]{MapWriteFlag.CREATE_ONLY, MapWriteFlags.CREATE_ONLY},
-                new Object[]{MapWriteFlag.UPDATE_ONLY, MapWriteFlags.UPDATE_ONLY},
-                new Object[]{MapWriteFlag.NO_FAIL, MapWriteFlags.NO_FAIL},
-                new Object[]{MapWriteFlag.PARTIAL, MapWriteFlags.PARTIAL},
-                };
+    static Stream<Arguments> getParams() {
+        return Stream.of(
+                Arguments.of(MapWriteFlag.DEFAULT, MapWriteFlags.DEFAULT),
+                Arguments.of(MapWriteFlag.CREATE_ONLY, MapWriteFlags.CREATE_ONLY),
+                Arguments.of(MapWriteFlag.UPDATE_ONLY, MapWriteFlags.UPDATE_ONLY),
+                Arguments.of(MapWriteFlag.NO_FAIL, MapWriteFlags.NO_FAIL),
+                Arguments.of(MapWriteFlag.PARTIAL, MapWriteFlags.PARTIAL)
+        );
     }
 
-    MapWriteFlag enum_;
-    int flag;
-
-    public MapWriteFlagTest(MapWriteFlag enum_, int flag) {
-        this.enum_ = enum_;
-        this.flag = flag;
-    }
-
-    @Test
-    public void testFlag() {
-        Assert.assertEquals(enum_.flag, flag);
+    @ParameterizedTest
+    @MethodSource("getParams")
+    void testFlag(MapWriteFlag enum_, int flag) {
+        assertEquals(enum_.flag, flag);
     }
 }

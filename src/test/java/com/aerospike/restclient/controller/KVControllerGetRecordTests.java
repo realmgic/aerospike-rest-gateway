@@ -23,15 +23,13 @@ import com.aerospike.restclient.controllers.KeyValueController;
 import com.aerospike.restclient.domain.RestClientRecord;
 import com.aerospike.restclient.service.AerospikeRecordService;
 import com.aerospike.restclient.util.AerospikeAPIConstants;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 
@@ -40,12 +38,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.AdditionalMatchers.aryEq;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-@RunWith(SpringRunner.class)
 @SpringBootTest
 public class KVControllerGetRecordTests {
 
@@ -66,7 +64,7 @@ public class KVControllerGetRecordTests {
 
     private RestClientRecord testRecord;
 
-    @Before
+    @BeforeEach
     /* Initialize the query params argument */ public void setup() {
         Map<String, Object> testBins = new HashMap<>();
         testBins.put("bin1", "val1");
@@ -111,7 +109,7 @@ public class KVControllerGetRecordTests {
         when(recordService.fetchRecord(isNull(), anyString(), anyString(), anyString(), any(), isNull(),
                 any(Policy.class))).thenReturn(testRecord);
         RestClientRecord actualRecord = controller.getRecordNamespaceSetKey(ns, set, key, queryParams, null);
-        Assert.assertTrue(recordsEqual(testRecord, actualRecord));
+        Assertions.assertTrue(recordsEqual(testRecord, actualRecord));
     }
 
     @Test
@@ -119,25 +117,25 @@ public class KVControllerGetRecordTests {
         when(recordService.fetchRecord(isNull(), anyString(), isNull(), anyString(), any(), any(),
                 any(Policy.class))).thenReturn(testRecord);
         RestClientRecord actualRecord = controller.getRecordNamespaceKey(ns, key, queryParams, null);
-        Assert.assertTrue(recordsEqual(testRecord, actualRecord));
+        Assertions.assertTrue(recordsEqual(testRecord, actualRecord));
     }
 
-    @Test(expected = AerospikeException.class)
+    @Test
     public void testErrorNSSetKey() {
         Mockito.doThrow(expectedException)
                 .when(recordService)
                 .fetchRecord(isNull(), any(String.class), any(String.class), any(String.class), any(), any(),
                         any(Policy.class));
-        controller.getRecordNamespaceSetKey(ns, set, key, queryParams, null);
+        assertThrows(AerospikeException.class, () -> controller.getRecordNamespaceSetKey(ns, set, key, queryParams, null));
     }
 
-    @Test(expected = AerospikeException.class)
+    @Test
     public void testErrorNSKey() {
         Mockito.doThrow(expectedException)
                 .when(recordService)
                 .fetchRecord(isNull(), any(String.class), isNull(), any(String.class), any(), isNull(),
                         any(Policy.class));
-        controller.getRecordNamespaceKey(ns, key, queryParams, null);
+        assertThrows(AerospikeException.class, () -> controller.getRecordNamespaceKey(ns, key, queryParams, null));
     }
 
     private boolean recordsEqual(RestClientRecord expected, RestClientRecord actual) {

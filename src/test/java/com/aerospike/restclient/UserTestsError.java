@@ -22,12 +22,15 @@ import com.aerospike.client.admin.Role;
 import com.aerospike.restclient.domain.RestClientUserModel;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.junit.*;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Assumptions;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.junit4.SpringRunner;
+
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
@@ -40,7 +43,6 @@ import java.util.Map;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@RunWith(SpringRunner.class)
 @SpringBootTest
 public class UserTestsError {
 
@@ -65,18 +67,18 @@ public class UserTestsError {
     @Autowired
     AerospikeClient client;
 
-    @BeforeClass
+    @BeforeAll
     public static void okToRun() {
-        Assume.assumeTrue(ASTestUtils.runningWithAuth());
+        Assumptions.assumeTrue(ASTestUtils.runningWithAuth());
     }
 
-    @Before
+    @BeforeEach
     public void setUp() {
         mockMVC = MockMvcBuilders.webAppContextSetup(wac).build();
         createdUsers = new ArrayList<>();
     }
 
-    @After
+    @AfterEach
     public void tearDown() {
         for (String user : createdUsers) {
             try {
@@ -89,7 +91,7 @@ public class UserTestsError {
 
     @Test
     public void getUserThatDoesNotExist() throws Exception {
-        Assume.assumeFalse(ClusterUtils.isSecurityEnabled(client));
+        Assumptions.assumeFalse(ClusterUtils.isSecurityEnabled(client));
         /* Get information on the user we just created*/
         mockMVC.perform(get(endpoint + "/" + "notARealUser").contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isNotFound());
@@ -97,7 +99,7 @@ public class UserTestsError {
 
     @Test
     public void deleteUserThatDoesNotExist() throws Exception {
-        Assume.assumeFalse(ClusterUtils.isSecurityEnabled(client));
+        Assumptions.assumeFalse(ClusterUtils.isSecurityEnabled(client));
         /* Get information on the user we just created*/
         mockMVC.perform(delete(endpoint + "/" + "notARealUser").contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isNotFound());
@@ -105,7 +107,7 @@ public class UserTestsError {
 
     @Test
     public void patchUserThatDoesNotExist() throws Exception {
-        Assume.assumeFalse(ClusterUtils.isSecurityEnabled(client));
+        Assumptions.assumeFalse(ClusterUtils.isSecurityEnabled(client));
         String newPassword = "SuperSecret";
         mockMVC.perform(patch(endpoint + "/" + "notARealUser").contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(newPassword))).andExpect(status().isNotFound());
@@ -159,7 +161,7 @@ public class UserTestsError {
 
     @Test
     public void addRolesToNonExistantUser() throws Exception {
-        Assume.assumeFalse(ClusterUtils.isSecurityEnabled(client));
+        Assumptions.assumeFalse(ClusterUtils.isSecurityEnabled(client));
         String[] roles = {Role.ReadWrite, Role.ReadWriteUdf};
 
         mockMVC.perform(post(endpoint + "/notARealUser/role").contentType(MediaType.APPLICATION_JSON)
@@ -168,7 +170,7 @@ public class UserTestsError {
 
     @Test
     public void deleteRolesFromNonExistantUser() throws Exception {
-        Assume.assumeFalse(ClusterUtils.isSecurityEnabled(client));
+        Assumptions.assumeFalse(ClusterUtils.isSecurityEnabled(client));
         String[] roles = {Role.ReadWrite, Role.ReadWriteUdf};
 
         mockMVC.perform(patch(endpoint + "/notARealUser/role/delete").contentType(MediaType.APPLICATION_JSON)

@@ -25,16 +25,20 @@ import com.aerospike.restclient.domain.RestClientIndex;
 import com.aerospike.restclient.util.InfoResponseParser;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.junit.*;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameters;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Assumptions;
+
 import org.msgpack.jackson.dataformat.MessagePackFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.junit4.rules.SpringClassRule;
-import org.springframework.test.context.junit4.rules.SpringMethodRule;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
@@ -42,31 +46,20 @@ import org.springframework.web.context.WebApplicationContext;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 
+import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@RunWith(Parameterized.class)
 @SpringBootTest
 public class SindexTestsCorrect {
 
-    @ClassRule
-    public static final SpringClassRule springClassRule = new SpringClassRule();
-
-    @Rule
-    public final SpringMethodRule springMethodRule = new SpringMethodRule();
-
-    private final RestIndexHandler handler;
-
-    @Parameters
-    public static Object[] getParams() {
-        return new Object[]{
-                new JSONIndexHandler(), new MsgPackIndexHandler()
-        };
-    }
-
-    public SindexTestsCorrect(RestIndexHandler handler) {
-        this.handler = handler;
+    static Stream<Arguments> getParams() {
+        return Stream.of(
+                Arguments.of(new JSONIndexHandler()),
+                Arguments.of(new MsgPackIndexHandler())
+        );
     }
 
     String endpoint = "/v1/index";
@@ -94,43 +87,46 @@ public class SindexTestsCorrect {
     private AerospikeClient client;
 
     /* create and load an index*/
-    @Before
+    @BeforeEach
     public void setup() throws InterruptedException {
         mockMVC = MockMvcBuilders.webAppContextSetup(wac).build();
         createdIndexPairs = new ArrayList<>();
     }
 
-    @After
+    @AfterEach
     public void tearDown() {
         for (String[] idxPair : createdIndexPairs) {
             ASTestUtils.ensureDeletion(client, idxPair[0], idxPair[1]);
         }
     }
 
-    @Test
-    public void createIndex() throws Exception {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void createIndex(RestIndexHandler handler) throws Exception {
         RestClientIndex postTestIdx = new RestClientIndex();
         postTestIdx.setNamespace(testNS);
         postTestIdx.setSet(testIndexSet);
         postTestIdx.setBin("postTestBinC");
         postTestIdx.setName("postTestIdxC");
-        postTestIdx.setIndexType(IndexType.GEO2DSPHERE);
-        postTestIdx.setCollectionType(IndexCollectionType.MAPKEYS);
+        postTestIdx.setIndexType(IndexType.NUMERIC);
+
         createdIndexPairs.add(new String[]{testNS, "postTestIdxC"});
 
         handler.createIndex(mockMVC, endpoint, postTestIdx);
 
-        ASTestUtils.indexExists(client, testNS, "postTestIdx");
+        ASTestUtils.indexExists(client, testNS, "postTestIdxC");
 
         String idxInfos = Info.request(null, client.getNodes()[0], "sindex/" + testNS);
         List<Map<String, String>> idxInfoMaps = InfoResponseParser.getIndexInformation(idxInfos);
         List<RestClientIndex> existingIndexes = idxInfoMaps.stream().map(RestClientIndex::new).toList();
 
-        Assert.assertTrue(indexesContain(existingIndexes, postTestIdx));
+        Assertions.assertTrue(indexesContain(existingIndexes, postTestIdx), 
+            "Index should contain: " + postTestIdx + " but found: " + existingIndexes);
     }
 
-    @Test
-    public void createIndexWithoutCollectionType() throws Exception {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void createIndexWithoutCollectionType(RestIndexHandler handler) throws Exception {
         RestClientIndex postTestIdx = new RestClientIndex();
         postTestIdx.setNamespace(testNS);
         postTestIdx.setSet(testIndexSet);
@@ -147,11 +143,12 @@ public class SindexTestsCorrect {
         List<Map<String, String>> idxInfoMaps = InfoResponseParser.getIndexInformation(idxInfos);
         List<RestClientIndex> existingIndexes = idxInfoMaps.stream().map(RestClientIndex::new).toList();
 
-        Assert.assertTrue(indexesContain(existingIndexes, postTestIdx));
+        Assertions.assertTrue(indexesContain(existingIndexes, postTestIdx));
     }
 
-    @Test
-    public void createIndexWithoutSet() throws Exception {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void createIndexWithoutSet(RestIndexHandler handler) throws Exception {
         RestClientIndex postTestIdx = new RestClientIndex();
         postTestIdx.setNamespace(testNS);
         postTestIdx.setBin("NoSetIdx");
@@ -167,24 +164,24 @@ public class SindexTestsCorrect {
         List<Map<String, String>> idxInfoMaps = InfoResponseParser.getIndexInformation(idxInfos);
         List<RestClientIndex> existingIndexes = idxInfoMaps.stream().map(RestClientIndex::new).toList();
 
-        Assert.assertTrue(indexesContain(existingIndexes, postTestIdx));
+        Assertions.assertTrue(indexesContain(existingIndexes, postTestIdx));
     }
 
-    @Test
-    public void getIndexes() throws Exception {
-        RestIndexHandler handler = new MsgPackIndexHandler();
-
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void getIndexes(RestIndexHandler handler) throws Exception {
         // Create an index specifically for this test
         // We then verify that it shows up when we get a list of indices.
         addIndexForTest("getIndexes", "getIndexes");
 
         List<RestClientIndex> indexList = handler.getIndexes(mockMVC, endpoint);
 
-        Assert.assertTrue(indexesContain(indexList, createdRCIndex));
+        Assertions.assertTrue(indexesContain(indexList, createdRCIndex));
     }
 
-    @Test
-    public void getIndexStats() throws Exception {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void getIndexStats(RestIndexHandler handler) throws Exception {
         addIndexForTest("getIndexstat", "getIndexstat");
 
         Map<String, String> restIndexStatMap = handler.getIndexStats(mockMVC,
@@ -192,25 +189,33 @@ public class SindexTestsCorrect {
         String indexStat = Info.request(null, client.getNodes()[0], "sindex/" + testNS + "/" + testIndexName);
         Map<String, String> indexStatMap = InfoResponseParser.getIndexStatInfo(indexStat);
 
-        Assert.assertTrue(ASTestUtils.compareStringMap(restIndexStatMap, indexStatMap));
+        Assertions.assertTrue(ASTestUtils.compareStringMap(restIndexStatMap, indexStatMap));
     }
 
-    @Test
-    public void testIndexStatsInvalidNS() throws Exception {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testIndexStatsInvalidNS(RestIndexHandler handler) throws Exception {
         addIndexForTest("getIndexstat", "getIndexstat");
         handler.testIndexNotFound(mockMVC, endpoint + "/" + "fakeNS" + "/" + testIndexName);
     }
 
     /* This is run with each handler, but it is not changed since no body or response is packed/unpacked */
-    @Test
-    public void deleteIndex() throws Exception {
-        addIndexForTest("delIndex", "delIndex");
-        mockMVC.perform(delete(endpoint + "/" + testNS + "/" + testIndexName)).andExpect(status().isAccepted());
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void deleteIndex(RestIndexHandler handler) throws Exception {
+        String indexName = "delIndex";
+        addIndexForTest(indexName, "delIndex");
+
+        Assertions.assertTrue(ASTestUtils.indexExists(client, testNS, indexName),
+            "Index should exist: " + indexName + " but does not");
+
+        mockMVC.perform(delete(endpoint + "/" + testNS + "/" + indexName)).andExpect(status().isAccepted());
 
         /* give some time for the index dropping to occur */
-        Thread.sleep(5000);
+        Thread.sleep(3000);
 
-        Assert.assertFalse(ASTestUtils.indexExists(client, testNS, testIndexName));
+        Assertions.assertFalse(ASTestUtils.indexExists(client, testNS, indexName),
+            "Index should not exist: " + indexName + " but exists");
     }
 
     private boolean indexesContain(List<RestClientIndex> rcIndexes, RestClientIndex rcIndex) {

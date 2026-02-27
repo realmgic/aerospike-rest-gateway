@@ -24,12 +24,15 @@ import com.aerospike.client.admin.Role;
 import com.aerospike.restclient.domain.RestClientPrivilege;
 import com.aerospike.restclient.domain.RestClientRole;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.junit.*;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Assumptions;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.junit4.SpringRunner;
+
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
@@ -41,7 +44,6 @@ import java.util.List;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@RunWith(SpringRunner.class)
 @SpringBootTest
 public class RoleTestsError {
 
@@ -64,12 +66,12 @@ public class RoleTestsError {
     @Autowired
     private AerospikeClient client;
 
-    @BeforeClass
+    @BeforeAll
     public static void okToRun() {
-        Assume.assumeTrue(ASTestUtils.runningWithAuth());
+        Assumptions.assumeTrue(ASTestUtils.runningWithAuth());
     }
 
-    @Before
+    @BeforeEach
     public void setup() throws InterruptedException {
         mockMVC = MockMvcBuilders.webAppContextSetup(wac).build();
         readTestDemo = new Privilege();
@@ -98,7 +100,7 @@ public class RoleTestsError {
         Thread.sleep(1000);
     }
 
-    @After
+    @AfterEach
     public void tearDown() {
         for (String role : createdRoles) {
             try {
