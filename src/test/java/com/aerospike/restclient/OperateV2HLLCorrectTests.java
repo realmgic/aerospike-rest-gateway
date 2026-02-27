@@ -448,18 +448,11 @@ public class OperateV2HLLCorrectTests {
             opMap.put(OPERATION_TYPE_KEY, AerospikeOperation.HLL_INIT);
             opList.add(opMap);
 
-            System.out.println("opRequest: " + opRequest);
-            System.out.println("opList: " + opList);
-            System.out.println("opMap: " + opMap);
-
             opPerformer.performOperationsAndExpect(mockMVC, testEndpoint, opRequest, status().isOk());
 
             Record record = client.operate(null, testKey, HLLOperation.describe("hll"));
             List<?> description = record.getList("hll");
-            
-            System.out.println("record: " + record);
-            System.out.println("description: " + description);
-
+                        
             Assertions.assertEquals(16L, description.get(0));
             Assertions.assertEquals(0L, description.get(1));
         } finally {
