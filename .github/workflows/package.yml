@@ -8,7 +8,20 @@ on:
   pull_request:
     branches:
       - master
+    paths:
+      - 'src/**'
+      - 'build.gradle*'
+      - '**/*.gradle'
+      - '**/gradle/**'
+      - 'Makefile'
+      - 'openapi/**'
+      - '**/openapi*.json'
+      - '.github/workflows/package.yml'
   workflow_call:
+
+concurrency:
+  group: package-${{ github.ref }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -27,10 +40,15 @@ jobs:
         uses: reugn/github-action-aerospike@v1
         with:
           server-version: 7.0.0.9
-      - name: Install npm
-        run: sudo apt-get install npm && npm install -g swagger-cli
+      - name: Install npm and swagger-cli
+        uses: nick-fields/retry@v3
+        with:
+          max_attempts: 3
+          timeout_minutes: 5
+          retry_wait_seconds: 15
+          command: sudo apt-get update && sudo apt-get install -y npm && npm install -g swagger-cli
       - name: Cache Gradle packages
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.gradle/caches
@@ -39,9 +57,12 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-gradle-
       - name: Build & Package
-        run: |
-          make package 2>&1 | tee build.log
-          exit ${PIPESTATUS[0]}
+        uses: nick-fields/retry@v3
+        with:
+          max_attempts: 2
+          timeout_minutes: 25
+          retry_wait_seconds: 30
+          command: bash -c 'make package 2>&1 | tee build.log; exit ${PIPESTATUS[0]}'
 
       - name: Upload build reports
         if: always()
