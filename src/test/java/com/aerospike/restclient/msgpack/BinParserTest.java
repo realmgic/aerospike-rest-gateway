@@ -22,8 +22,10 @@ import com.aerospike.restclient.util.RestClientErrors.MalformedMsgPackError;
 import com.aerospike.restclient.util.deserializers.MsgPackBinParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import org.msgpack.core.MessageBufferPacker;
 import org.msgpack.core.MessagePack;
 import org.msgpack.jackson.dataformat.MessagePackFactory;
@@ -93,9 +95,9 @@ public class BinParserTest {
         MsgPackBinParser parser = new MsgPackBinParser(new ByteArrayInputStream(geoMsgPackBin));
         Map<String, Object> parsedBins = parser.parseBins();
 
-        Assert.assertEquals(parsedBins.size(), 1);
-        Assert.assertTrue(parsedBins.get("geo") instanceof GeoJSONValue);
-        Assert.assertEquals(((GeoJSONValue) parsedBins.get("geo")).toString(), geoString);
+        Assertions.assertEquals(parsedBins.size(), 1);
+        Assertions.assertTrue(parsedBins.get("geo") instanceof GeoJSONValue);
+        Assertions.assertEquals(((GeoJSONValue) parsedBins.get("geo")).toString(), geoString);
     }
 
     @Test
@@ -121,7 +123,7 @@ public class BinParserTest {
         MsgPackBinParser parser = new MsgPackBinParser(new ByteArrayInputStream(binBytes));
         Map<String, Object> parsedBins = parser.parseBins();
 
-        Assert.assertTrue(ASTestUtils.compareMapStringObj(testBins, parsedBins));
+        Assertions.assertTrue(ASTestUtils.compareMapStringObj(testBins, parsedBins));
 
     }
 
@@ -133,7 +135,7 @@ public class BinParserTest {
         MsgPackBinParser parser = new MsgPackBinParser(new ByteArrayInputStream(msgpackBin));
         Map<String, Object> parsedBins = parser.parseBins();
 
-        Assert.assertTrue(ASTestUtils.compareMapStringObj(testBins, parsedBins));
+        Assertions.assertTrue(ASTestUtils.compareMapStringObj(testBins, parsedBins));
     }
 
     @Test
@@ -161,20 +163,20 @@ public class BinParserTest {
         MsgPackBinParser parser = new MsgPackBinParser(new ByteArrayInputStream(msgpackMap));
         Map<String, Object> parsedBins = parser.parseBins();
 
-        Assert.assertTrue(ASTestUtils.compareMapStringObj(parsedBins, realBins));
+        Assertions.assertTrue(ASTestUtils.compareMapStringObj(parsedBins, realBins));
 
     }
 
-    @Test(expected = MalformedMsgPackError.class)
+    @Test
     public void nonMapBinsTest() throws IOException {
         MessageBufferPacker packer = new MessagePack.PackerConfig().newBufferPacker();
         packer.packInt(5);
         byte[] intBytes = packer.toByteArray();
         MsgPackBinParser parser = new MsgPackBinParser(new ByteArrayInputStream(intBytes));
-        parser.parseBins();
+        assertThrows(MalformedMsgPackError.class, parser::parseBins);
     }
 
-    @Test(expected = MalformedMsgPackError.class)
+    @Test
     public void nonStringMapKeyTest() throws IOException {
         MessageBufferPacker packer = new MessagePack.PackerConfig().newBufferPacker();
         packer.packMapHeader(1);
@@ -182,10 +184,10 @@ public class BinParserTest {
         packer.packInt(5);
         byte[] binBytes = packer.toByteArray();
         MsgPackBinParser parser = new MsgPackBinParser(new ByteArrayInputStream(binBytes));
-        parser.parseBins();
+        assertThrows(MalformedMsgPackError.class, parser::parseBins);
     }
 
-    @Test(expected = MalformedMsgPackError.class)
+    @Test
     public void testIncompleteMapBins() throws IOException {
         MessageBufferPacker packer = new MessagePack.PackerConfig().newBufferPacker();
 
@@ -193,14 +195,14 @@ public class BinParserTest {
 
         MsgPackBinParser parser = new MsgPackBinParser(new ByteArrayInputStream(packer.toByteArray()));
 
-        parser.parseBins();
+        assertThrows(MalformedMsgPackError.class, parser::parseBins);
     }
 
-    @Test(expected = MalformedMsgPackError.class)
+    @Test
     public void testEmptyMapdata() throws IOException {
 
         MsgPackBinParser parser = new MsgPackBinParser(new ByteArrayInputStream(new byte[]{}));
-        parser.parseBins();
+        assertThrows(MalformedMsgPackError.class, parser::parseBins);
     }
 
     /*

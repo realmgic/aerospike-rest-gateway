@@ -24,20 +24,15 @@ import com.aerospike.restclient.util.AerospikeAPIConstants;
 import com.aerospike.restclient.util.AerospikeAPIConstants.RecordKeyType;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.junit.Before;
-import org.junit.ClassRule;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameters;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.Mockito;
 import org.msgpack.jackson.dataformat.MessagePackFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.test.context.junit4.rules.SpringClassRule;
-import org.springframework.test.context.junit4.rules.SpringMethodRule;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 
@@ -45,80 +40,85 @@ import java.io.ByteArrayInputStream;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.Stream;
 
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.verify;
 
-@RunWith(Parameterized.class)
 @SpringBootTest
 public class KVControllerV1KeyTypeTests {
-
-    @ClassRule
-    public static final SpringClassRule springClassRule = new SpringClassRule();
-    @Rule
-    public final SpringMethodRule springMethodRule = new SpringMethodRule();
 
     @Autowired
     KeyValueController controller;
     @MockitoBean
     AerospikeRecordService recordService;
 
-    private final String ns = "test";
-    private final String set = "set";
-    private final String key = "key";
+    private static final String ns = "test";
+    private static final String set = "set";
+    private static final String key = "key";
 
     private Map<String, Object> dummyBins;
-    private Map<String, String> queryParams;
-    private MultiValueMap<String, String> multiQueryParams;
-    private final RecordKeyType expectedKeyType;
-
     private byte[] msgpackBins;
     private final ObjectMapper mpMapper = new ObjectMapper(new MessagePackFactory());
 
-    @Parameters
-    public static Object[] keyType() {
-        return new Object[]{
-                RecordKeyType.STRING, RecordKeyType.BYTES, RecordKeyType.DIGEST, RecordKeyType.INTEGER, null
-        };
+    static Stream<Arguments> keyType() {
+        return Stream.of(
+                Arguments.of(RecordKeyType.STRING),
+                Arguments.of(RecordKeyType.BYTES),
+                Arguments.of(RecordKeyType.DIGEST),
+                Arguments.of(RecordKeyType.INTEGER),
+                Arguments.of((RecordKeyType) null)
+        );
     }
 
-    public KVControllerV1KeyTypeTests(RecordKeyType keyType) {
-        this.expectedKeyType = keyType;
-    }
-
-    @Before
+    @BeforeEach
     public void setup() throws JsonProcessingException {
         dummyBins = new HashMap<>();
         dummyBins.put("bin", "a");
         msgpackBins = mpMapper.writeValueAsBytes(dummyBins);
-        queryParams = new HashMap<>();
-        multiQueryParams = new LinkedMultiValueMap<>();
+    }
 
+    private static Map<String, String> queryParamsFor(RecordKeyType expectedKeyType) {
+        Map<String, String> queryParams = new HashMap<>();
         if (expectedKeyType != null) {
             queryParams.put(AerospikeAPIConstants.KEY_TYPE, expectedKeyType.toString());
+        }
+        return queryParams;
+    }
+
+    private static MultiValueMap<String, String> multiQueryParamsFor(RecordKeyType expectedKeyType) {
+        MultiValueMap<String, String> multiQueryParams = new LinkedMultiValueMap<>();
+        if (expectedKeyType != null) {
             multiQueryParams.put(AerospikeAPIConstants.KEY_TYPE, Collections.singletonList(expectedKeyType.toString()));
         }
+        return multiQueryParams;
     }
 
     /* UPDATE */
-    @Test
-    public void testKeyTypeForUpdateNSSetKey() {
+    @ParameterizedTest
+    @MethodSource("keyType")
+    public void testKeyTypeForUpdateNSSetKey(RecordKeyType expectedKeyType) {
+        Map<String, String> queryParams = queryParamsFor(expectedKeyType);
         controller.updateRecordNamespaceSetKey(ns, set, key, dummyBins, queryParams, null);
 
         verify(recordService, Mockito.only()).storeRecord(isNull(), eq(ns), eq(set), eq(key), eq(dummyBins),
                 eq(expectedKeyType), isA(WritePolicy.class));
     }
 
-    @Test
-    public void testRecordKeyTypeForUpdateNSKey() {
+    @ParameterizedTest
+    @MethodSource("keyType")
+    public void testRecordKeyTypeForUpdateNSKey(RecordKeyType expectedKeyType) {
+        Map<String, String> queryParams = queryParamsFor(expectedKeyType);
         controller.updateRecordNamespaceKey(ns, key, dummyBins, queryParams, null);
 
         verify(recordService, Mockito.only()).storeRecord(isNull(), eq(ns), isNull(), eq((key)), eq(dummyBins),
                 eq(expectedKeyType), isA(WritePolicy.class));
     }
 
-    @Test
-    public void testRecordKeyTypeForUpdateNSSetKeyMP() {
+    @ParameterizedTest
+    @MethodSource("keyType")
+    public void testRecordKeyTypeForUpdateNSSetKeyMP(RecordKeyType expectedKeyType) {
+        Map<String, String> queryParams = queryParamsFor(expectedKeyType);
         controller.updateRecordNamespaceSetKeyMP(ns, set, key, new ByteArrayInputStream(msgpackBins), queryParams,
                 null);
 
@@ -126,8 +126,10 @@ public class KVControllerV1KeyTypeTests {
                 eq(expectedKeyType), isA(WritePolicy.class));
     }
 
-    @Test
-    public void testRecordKeyTypeForUpdateNSKeyMP() {
+    @ParameterizedTest
+    @MethodSource("keyType")
+    public void testRecordKeyTypeForUpdateNSKeyMP(RecordKeyType expectedKeyType) {
+        Map<String, String> queryParams = queryParamsFor(expectedKeyType);
         controller.updateRecordNamespaceKeyMP(ns, key, new ByteArrayInputStream(msgpackBins), queryParams, null);
 
         verify(recordService, Mockito.only()).storeRecord(isNull(), eq(ns), isNull(), eq((key)), eq(dummyBins),
@@ -135,39 +137,49 @@ public class KVControllerV1KeyTypeTests {
     }
 
     /* DELETE */
-    @Test
-    public void testKeyTypeDeleteNSSetKey() {
+    @ParameterizedTest
+    @MethodSource("keyType")
+    public void testKeyTypeDeleteNSSetKey(RecordKeyType expectedKeyType) {
+        Map<String, String> queryParams = queryParamsFor(expectedKeyType);
         controller.deleteRecordNamespaceSetKey(ns, set, key, queryParams, null);
         verify(recordService, Mockito.only()).deleteRecord(isNull(), any(String.class), any(String.class),
                 any(String.class), eq(expectedKeyType), any(WritePolicy.class));
     }
 
-    @Test
-    public void testKeyTypeDeleteNSKey() {
+    @ParameterizedTest
+    @MethodSource("keyType")
+    public void testKeyTypeDeleteNSKey(RecordKeyType expectedKeyType) {
+        Map<String, String> queryParams = queryParamsFor(expectedKeyType);
         controller.deleteRecordNamespaceKey(ns, key, queryParams, null);
         verify(recordService, Mockito.only()).deleteRecord(isNull(), any(String.class), isNull(), any(String.class),
                 eq(expectedKeyType), any(WritePolicy.class));
     }
 
     /* CREATE */
-    @Test
-    public void testKeyTypeCreateNSSetKey() {
+    @ParameterizedTest
+    @MethodSource("keyType")
+    public void testKeyTypeCreateNSSetKey(RecordKeyType expectedKeyType) {
+        Map<String, String> queryParams = queryParamsFor(expectedKeyType);
         controller.createRecordNamespaceSetKey(ns, set, key, dummyBins, queryParams, null);
 
         verify(recordService, Mockito.only()).storeRecord(isNull(), eq(ns), eq(set), eq(key), eq(dummyBins),
                 eq(expectedKeyType), isA(WritePolicy.class));
     }
 
-    @Test
-    public void testRecordKeyTypeCreateNSKey() {
+    @ParameterizedTest
+    @MethodSource("keyType")
+    public void testRecordKeyTypeCreateNSKey(RecordKeyType expectedKeyType) {
+        Map<String, String> queryParams = queryParamsFor(expectedKeyType);
         controller.createRecordNamespaceKey(ns, key, dummyBins, queryParams, null);
 
         verify(recordService, Mockito.only()).storeRecord(isNull(), eq(ns), isNull(), eq((key)), eq(dummyBins),
                 eq(expectedKeyType), isA(WritePolicy.class));
     }
 
-    @Test
-    public void testRecordKeyTypeCreateNSSetKeyMP() {
+    @ParameterizedTest
+    @MethodSource("keyType")
+    public void testRecordKeyTypeCreateNSSetKeyMP(RecordKeyType expectedKeyType) {
+        Map<String, String> queryParams = queryParamsFor(expectedKeyType);
         controller.createRecordNamespaceSetKeyMP(ns, set, key, new ByteArrayInputStream(msgpackBins), queryParams,
                 null);
 
@@ -175,8 +187,10 @@ public class KVControllerV1KeyTypeTests {
                 eq(expectedKeyType), isA(WritePolicy.class));
     }
 
-    @Test
-    public void testRecordKeyTypeCreateNSKeyMP() {
+    @ParameterizedTest
+    @MethodSource("keyType")
+    public void testRecordKeyTypeCreateNSKeyMP(RecordKeyType expectedKeyType) {
+        Map<String, String> queryParams = queryParamsFor(expectedKeyType);
         controller.createRecordNamespaceKeyMP(ns, key, new ByteArrayInputStream(msgpackBins), queryParams, null);
 
         verify(recordService, Mockito.only()).storeRecord(isNull(), eq(ns), isNull(), eq((key)), eq(dummyBins),
@@ -184,24 +198,30 @@ public class KVControllerV1KeyTypeTests {
     }
 
     /* REPLACE */
-    @Test
-    public void testKeyTypeReplaceNSSetKey() {
+    @ParameterizedTest
+    @MethodSource("keyType")
+    public void testKeyTypeReplaceNSSetKey(RecordKeyType expectedKeyType) {
+        Map<String, String> queryParams = queryParamsFor(expectedKeyType);
         controller.replaceRecordNamespaceSetKey(ns, set, key, dummyBins, queryParams, null);
 
         verify(recordService, Mockito.only()).storeRecord(isNull(), eq(ns), eq(set), eq(key), eq(dummyBins),
                 eq(expectedKeyType), isA(WritePolicy.class));
     }
 
-    @Test
-    public void testRecordKeyTypeReplaceNSKey() {
+    @ParameterizedTest
+    @MethodSource("keyType")
+    public void testRecordKeyTypeReplaceNSKey(RecordKeyType expectedKeyType) {
+        Map<String, String> queryParams = queryParamsFor(expectedKeyType);
         controller.replaceRecordNamespaceKey(ns, key, dummyBins, queryParams, null);
 
         verify(recordService, Mockito.only()).storeRecord(isNull(), eq(ns), isNull(), eq((key)), eq(dummyBins),
                 eq(expectedKeyType), isA(WritePolicy.class));
     }
 
-    @Test
-    public void testRecordKeyTypeReplaceNSSetKeyMP() {
+    @ParameterizedTest
+    @MethodSource("keyType")
+    public void testRecordKeyTypeReplaceNSSetKeyMP(RecordKeyType expectedKeyType) {
+        Map<String, String> queryParams = queryParamsFor(expectedKeyType);
         controller.replaceRecordNamespaceSetKeyMP(ns, set, key, new ByteArrayInputStream(msgpackBins), queryParams,
                 null);
 
@@ -209,8 +229,10 @@ public class KVControllerV1KeyTypeTests {
                 eq(expectedKeyType), isA(WritePolicy.class));
     }
 
-    @Test
-    public void testRecordKeyTypeReplaceNSKeyMP() {
+    @ParameterizedTest
+    @MethodSource("keyType")
+    public void testRecordKeyTypeReplaceNSKeyMP(RecordKeyType expectedKeyType) {
+        Map<String, String> queryParams = queryParamsFor(expectedKeyType);
         controller.replaceRecordNamespaceKeyMP(ns, key, new ByteArrayInputStream(msgpackBins), queryParams, null);
 
         verify(recordService, Mockito.only()).storeRecord(isNull(), eq(ns), isNull(), eq((key)), eq(dummyBins),
@@ -218,15 +240,19 @@ public class KVControllerV1KeyTypeTests {
     }
 
     /*GET */
-    @Test
-    public void testKeyTypeForNSSetKey() {
+    @ParameterizedTest
+    @MethodSource("keyType")
+    public void testKeyTypeForNSSetKey(RecordKeyType expectedKeyType) {
+        MultiValueMap<String, String> multiQueryParams = multiQueryParamsFor(expectedKeyType);
         controller.getRecordNamespaceSetKey(ns, set, key, multiQueryParams, null);
         verify(recordService, Mockito.only()).fetchRecord(isNull(), any(String.class), any(String.class),
                 any(String.class), any(String[].class), eq(expectedKeyType), isA(Policy.class));
     }
 
-    @Test
-    public void testKeyTypeForNSKey() {
+    @ParameterizedTest
+    @MethodSource("keyType")
+    public void testKeyTypeForNSKey(RecordKeyType expectedKeyType) {
+        MultiValueMap<String, String> multiQueryParams = multiQueryParamsFor(expectedKeyType);
         controller.getRecordNamespaceKey(ns, key, multiQueryParams, null);
         verify(recordService, Mockito.only()).fetchRecord(isNull(), any(String.class), isNull(), any(String.class),
                 any(String[].class), eq(expectedKeyType), isA(Policy.class));

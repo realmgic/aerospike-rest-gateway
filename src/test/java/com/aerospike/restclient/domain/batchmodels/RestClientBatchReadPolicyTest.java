@@ -24,27 +24,23 @@ import com.aerospike.restclient.ASTestMapper;
 import com.aerospike.restclient.IASTestMapper;
 import com.aerospike.restclient.config.JSONMessageConverter;
 import com.aerospike.restclient.config.MsgPackConverter;
-import org.junit.Assert;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.Stream;
 
-@RunWith(Parameterized.class)
 public class RestClientBatchReadPolicyTest {
-    private final IASTestMapper mapper;
-
-    @Parameterized.Parameters
-    public static Object[] getParams() {
-        return new Object[]{
-                new JsonRestClientBatchReadPolicyMapper(), new MsgPackRestClientBatchReadPolicyMapper()
-        };
-    }
-
-    public RestClientBatchReadPolicyTest(IASTestMapper mapper) {
-        this.mapper = mapper;
+    static Stream<Arguments> getParams() {
+        return Stream.of(
+                Arguments.of(new JsonRestClientBatchReadPolicyMapper()),
+                Arguments.of(new MsgPackRestClientBatchReadPolicyMapper())
+        );
     }
 
     @Test
@@ -52,8 +48,9 @@ public class RestClientBatchReadPolicyTest {
         new BatchWritePolicy();
     }
 
-    @Test
-    public void testObjectMappedBatchReadConstructionStringKey() throws Exception {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testObjectMappedBatchReadConstructionStringKey(IASTestMapper mapper) throws Exception {
         Map<String, Object> policyMap = new HashMap<>();
         policyMap.put("filterExp", "a filter");
         policyMap.put("readModeAP", "ALL");
@@ -61,13 +58,14 @@ public class RestClientBatchReadPolicyTest {
 
         BatchReadPolicy mappedBody = (BatchReadPolicy) mapper.bytesToObject(mapper.objectToBytes(policyMap));
 
-        Assert.assertEquals("a filter", mappedBody.filterExp);
-        Assert.assertEquals(ReadModeAP.ALL, mappedBody.readModeAP);
-        Assert.assertEquals(ReadModeSC.ALLOW_REPLICA, mappedBody.readModeSC);
+        Assertions.assertEquals("a filter", mappedBody.filterExp);
+        Assertions.assertEquals(ReadModeAP.ALL, mappedBody.readModeAP);
+        Assertions.assertEquals(ReadModeSC.ALLOW_REPLICA, mappedBody.readModeSC);
     }
 
-    @Test
-    public void testToBatchReadPolicy() {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testToBatchReadPolicy(IASTestMapper mapper) {
         Expression expectedExp = Exp.build(Exp.ge(Exp.bin("a", Exp.Type.INT), Exp.bin("b", Exp.Type.INT)));
         String expectedExpStr = expectedExp.getBase64();
         BatchReadPolicy restPolicy = new BatchReadPolicy();
@@ -77,9 +75,9 @@ public class RestClientBatchReadPolicyTest {
 
         com.aerospike.client.policy.BatchReadPolicy actualPolicy = restPolicy.toBatchReadPolicy();
 
-        Assert.assertEquals(expectedExp, actualPolicy.filterExp);
-        Assert.assertEquals(ReadModeAP.ALL, actualPolicy.readModeAP);
-        Assert.assertEquals(ReadModeSC.ALLOW_REPLICA, actualPolicy.readModeSC);
+        Assertions.assertEquals(expectedExp, actualPolicy.filterExp);
+        Assertions.assertEquals(ReadModeAP.ALL, actualPolicy.readModeAP);
+        Assertions.assertEquals(ReadModeSC.ALLOW_REPLICA, actualPolicy.readModeSC);
     }
 }
 
@@ -96,4 +94,3 @@ class MsgPackRestClientBatchReadPolicyMapper extends ASTestMapper {
         super(MsgPackConverter.getASMsgPackObjectMapper(), BatchReadPolicy.class);
     }
 }
-

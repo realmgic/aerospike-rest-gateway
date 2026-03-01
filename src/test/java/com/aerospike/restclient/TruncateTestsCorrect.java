@@ -18,14 +18,13 @@ package com.aerospike.restclient;
 
 import com.aerospike.client.Record;
 import com.aerospike.client.*;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.junit4.SpringRunner;
+
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
@@ -38,7 +37,6 @@ import java.util.List;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@RunWith(SpringRunner.class)
 @SpringBootTest
 public class TruncateTestsCorrect {
 
@@ -55,7 +53,7 @@ public class TruncateTestsCorrect {
     @Autowired
     private WebApplicationContext wac;
 
-    @Before
+    @BeforeEach
     public void setup() throws InterruptedException {
         mockMVC = MockMvcBuilders.webAppContextSetup(wac).build();
         preCutoffKeys = new ArrayList<>();
@@ -84,7 +82,7 @@ public class TruncateTestsCorrect {
         client.put(null, otherKey, new Bin("a", "b"));
     }
 
-    @After
+    @AfterEach
     public void clean() {
         for (Key key : preCutoffKeys) {
             try {
@@ -124,7 +122,7 @@ public class TruncateTestsCorrect {
             }
         }
 
-        Assert.assertFalse(stillExists);
+        Assertions.assertFalse(stillExists);
     }
 
     @Test
@@ -136,19 +134,19 @@ public class TruncateTestsCorrect {
         for (Key key : preCutoffKeys) {
             Record record = client.get(null, key);
             if (record != null) {
-                Assert.fail(String.format("Record still exists after truncate: %s", record));
+                Assertions.fail(String.format("Record still exists after truncate: %s", record));
             }
         }
 
         for (Key key : postCutoffKeys) {
             Record record = client.get(null, key);
             if (record != null) {
-                Assert.fail(String.format("Record still exists after truncate: %s", record));
+                Assertions.fail(String.format("Record still exists after truncate: %s", record));
             }
         }
 
         Record otherRecord = client.get(null, otherKey);
-        Assert.assertNotNull(otherRecord);
+        Assertions.assertNotNull(otherRecord);
     }
 
     @Test
@@ -167,7 +165,7 @@ public class TruncateTestsCorrect {
                 break;
             }
         }
-        Assert.assertFalse(preStillExists);
+        Assertions.assertFalse(preStillExists);
 
         for (Key key : postCutoffKeys) {
             Record record = client.get(null, key);
@@ -177,8 +175,8 @@ public class TruncateTestsCorrect {
             }
         }
 
-        Assert.assertTrue(postStillExists);
+        Assertions.assertTrue(postStillExists);
         Record otherRecord = client.get(null, otherKey);
-        Assert.assertNotNull(otherRecord);
+        Assertions.assertNotNull(otherRecord);
     }
 }

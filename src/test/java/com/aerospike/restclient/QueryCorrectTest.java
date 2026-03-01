@@ -27,13 +27,14 @@ import com.aerospike.restclient.config.MsgPackConverter;
 import com.aerospike.restclient.domain.RestClientKeyRecord;
 import com.aerospike.restclient.domain.geojsonmodels.LngLat;
 import com.aerospike.restclient.domain.querymodels.*;
-import org.junit.*;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.junit4.rules.SpringClassRule;
-import org.springframework.test.context.junit4.rules.SpringMethodRule;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
@@ -41,16 +42,10 @@ import org.springframework.web.context.WebApplicationContext;
 import java.nio.charset.StandardCharsets;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.stream.Stream;
 
-@RunWith(Parameterized.class)
 @SpringBootTest
 public class QueryCorrectTest {
-
-    @ClassRule
-    public static final SpringClassRule springClassRule = new SpringClassRule();
-
-    @Rule
-    public final SpringMethodRule springMethodRule = new SpringMethodRule();
 
     private MockMvc mockMVC;
 
@@ -61,22 +56,38 @@ public class QueryCorrectTest {
     private WebApplicationContext wac;
 
     private static final int numberOfRecords = 501;
-    private final Key[] testKeys;
-    private final String testEndpoint;
+    private static final String namespace = "test";
+    private static final String setName = "queryset";
+    private static final Key[] testKeys = new Key[numberOfRecords];
 
-    private final String setName;
-    private final String namespace;
+    static {
+        for (int i = 0; i < numberOfRecords; i++) {
+            testKeys[i] = new Key(namespace, setName, "key_" + i);
+        }
+    }
 
     private static boolean first = true;
 
-    @Before
+    public static Stream<Arguments> getParams() {
+        return Stream.of(
+                Arguments.of(new JSONQueryHandler(), true),
+                Arguments.of(new JSONQueryHandler(), false),
+                Arguments.of(new MsgPackQueryHandler(), true),
+                Arguments.of(new MsgPackQueryHandler(), false)
+        );
+    }
+
+    private static String testEndpointFor(boolean useSet) {
+        return useSet ? "/v1/query/" + namespace + "/" + setName : "/v1/query/" + namespace;
+    }
+
+    @BeforeEach
     public void setup() throws InterruptedException {
         mockMVC = MockMvcBuilders.webAppContextSetup(wac).build();
 
-        // Need JUnit5 to use Autowired client in @BeforeAll
         if (first) {
-            client.truncate(null, "test", null, null);
             first = false;
+            client.truncate(null, "test", null, null);
             WritePolicy writePolicy = new WritePolicy();
             writePolicy.sendKey = true;
             writePolicy.totalTimeout = 0;
@@ -125,53 +136,30 @@ public class QueryCorrectTest {
         }
     }
 
-    private final QueryHandler queryHandler;
-
-    @Parameterized.Parameters
-    public static Object[][] getParams() {
-        return new Object[][]{
-                {new JSONQueryHandler(), true},
-                {new JSONQueryHandler(), false},
-                {new MsgPackQueryHandler(), true},
-                {new MsgPackQueryHandler(), false},
-                };
-    }
-
-    public QueryCorrectTest(QueryHandler handler, boolean useSet) {
-        this.queryHandler = handler;
-        this.namespace = "test";
-        this.testKeys = new Key[numberOfRecords];
-        this.setName = "queryset";
-
-        if (useSet) {
-            testEndpoint = "/v1/query/" + namespace + "/" + setName;
-        } else {
-            testEndpoint = "/v1/query/" + namespace;
-        }
-
-        for (int i = 0; i < numberOfRecords; i++) {
-            testKeys[i] = new Key(namespace, setName, "key_" + i);
-        }
-    }
-
-    @Test
-    public void testPIQueryAllPartitions() throws Exception {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testPIQueryAllPartitions(QueryHandler queryHandler, boolean useSet) throws Exception {
+        String testEndpoint = testEndpointFor(useSet);
         QueryResponseBody res = queryHandler.perform(mockMVC, testEndpoint, new QueryRequestBody());
-        Assert.assertEquals(numberOfRecords, res.getPagination().getTotalRecords());
+        Assertions.assertEquals(numberOfRecords, res.getPagination().getTotalRecords());
     }
 
-    @Test
-    public void testPIQueryPartitionRange() throws Exception {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testPIQueryPartitionRange(QueryHandler queryHandler, boolean useSet) throws Exception {
+        String testEndpoint = testEndpointFor(useSet);
         int startPartitions = 100;
         int partitionCount = 2048;
         String endpoint = String.join("/", testEndpoint, String.valueOf(startPartitions),
                 String.valueOf(partitionCount));
         QueryResponseBody res = queryHandler.perform(mockMVC, endpoint, new QueryRequestBody());
-        Assert.assertTrue(res.getPagination().getTotalRecords() < (numberOfRecords / 2) + 50);
+        Assertions.assertTrue(res.getPagination().getTotalRecords() < (numberOfRecords / 2) + 50);
     }
 
-    @Test
-    public void testPIQueryAllPaginated() throws Exception {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testPIQueryAllPaginated(QueryHandler queryHandler, boolean useSet) throws Exception {
+        String testEndpoint = testEndpointFor(useSet);
         int pageSize = 100;
         int queryRequests = 0;
         int total = 0;
@@ -192,14 +180,16 @@ public class QueryCorrectTest {
             fromToken = res.getPagination().getNextToken();
         }
 
-        Assert.assertEquals(numberOfRecords, binValues.size());
-        Assert.assertEquals(numberOfRecords, total);
-        Assert.assertEquals(numberOfRecords / pageSize + 1, queryRequests);
-        Assert.assertNull(res.getPagination().getNextToken());
+        Assertions.assertEquals(numberOfRecords, binValues.size());
+        Assertions.assertEquals(numberOfRecords, total);
+        Assertions.assertEquals(numberOfRecords / pageSize + 1, queryRequests);
+        Assertions.assertNull(res.getPagination().getNextToken());
     }
 
-    @Test
-    public void testPIQueryPartitionRangePaginated() throws Exception {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testPIQueryPartitionRangePaginated(QueryHandler queryHandler, boolean useSet) throws Exception {
+        String testEndpoint = testEndpointFor(useSet);
         int startPartitions = 100;
         int partitionCount = 2048;
         int pageSize = 100;
@@ -208,7 +198,7 @@ public class QueryCorrectTest {
         QueryResponseBody res;
         Set<Integer> binValues = new HashSet<>();
         String endpoint = String.join("/", testEndpoint, String.valueOf(startPartitions),
-                partitionCount + "?maxRecords=" + pageSize + "&getToken=True");
+                String.valueOf(partitionCount) + "?maxRecords=" + pageSize + "&getToken=True");
         String fromToken = null;
 
         do {
@@ -223,14 +213,16 @@ public class QueryCorrectTest {
             fromToken = res.getPagination().getNextToken();
         } while (fromToken != null);
 
-        Assert.assertEquals((int) Math.ceil((double) (numberOfRecords / 2) / pageSize), queryRequests);
-        Assert.assertNull(res.getPagination().getNextToken());
-        Assert.assertTrue(total < (numberOfRecords / 2) + 100);  // estimate of number of records
-        Assert.assertTrue(binValues.size() < (numberOfRecords / 2) + 100); // estimate of number of records
+        Assertions.assertEquals((int) Math.ceil((double) (numberOfRecords / 2) / pageSize), queryRequests);
+        Assertions.assertNull(res.getPagination().getNextToken());
+        Assertions.assertTrue(total < (numberOfRecords / 2) + 100);  // estimate of number of records
+        Assertions.assertTrue(binValues.size() < (numberOfRecords / 2) + 100); // estimate of number of records
     }
 
-    @Test
-    public void testSIQueryAllEqualFilteredPaginated() throws Exception {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testSIQueryAllEqualFilteredPaginated(QueryHandler queryHandler, boolean useSet) throws Exception {
+        String testEndpoint = testEndpointFor(useSet);
         int pageSize = 100;
         int queryRequests = 0;
         int total = 0;
@@ -255,43 +247,49 @@ public class QueryCorrectTest {
             fromToken = res.getPagination().getNextToken();
         } while (fromToken != null);
 
-        Assert.assertEquals((int) Math.ceil((double) numberOfRecords / 3 / pageSize), queryRequests);
-        Assert.assertNull(res.getPagination().getNextToken());
-        Assert.assertEquals((numberOfRecords / 3), total);  // estimate of number of records
-        Assert.assertEquals(total, keyValues.size()); // estimate of number of records
+        Assertions.assertEquals((int) Math.ceil((double) numberOfRecords / 3 / pageSize), queryRequests);
+        Assertions.assertNull(res.getPagination().getNextToken());
+        Assertions.assertEquals((numberOfRecords / 3), total);  // estimate of number of records
+        Assertions.assertEquals(total, keyValues.size()); // estimate of number of records
     }
 
-    @Test
-    public void testSIQueryAllIntEqualFiltered() throws Exception {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testSIQueryAllIntEqualFiltered(QueryHandler queryHandler, boolean useSet) throws Exception {
+        String testEndpoint = testEndpointFor(useSet);
         QueryRequestBody queryBody = new QueryRequestBody();
         QueryEqualLongFilter filter = new QueryEqualLongFilter();
         filter.binName = "binInt";
         filter.value = 100L;
         queryBody.filter = filter;
         QueryResponseBody res = queryHandler.perform(mockMVC, testEndpoint, queryBody);
-        Assert.assertEquals(1, res.getPagination().getTotalRecords());
+        Assertions.assertEquals(1, res.getPagination().getTotalRecords());
     }
 
-    @Test
-    public void testSIQueryAllStringEqualFiltered() throws Exception {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testSIQueryAllStringEqualFiltered(QueryHandler queryHandler, boolean useSet) throws Exception {
+        String testEndpoint = testEndpointFor(useSet);
         QueryRequestBody queryBody = new QueryRequestBody();
         QueryEqualsStringFilter filter = new QueryEqualsStringFilter();
         filter.binName = "binStr";
         filter.value = "100";
         queryBody.filter = filter;
         QueryResponseBody res = queryHandler.perform(mockMVC, testEndpoint, queryBody);
-        Assert.assertEquals(1, res.getPagination().getTotalRecords());
+        Assertions.assertEquals(1, res.getPagination().getTotalRecords());
     }
 
-    @Test
-    public void testSIQueryAllGeoContainsFiltered() throws Exception {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testSIQueryAllGeoContainsFiltered(QueryHandler queryHandler, boolean useSet) throws Exception {
+        String testEndpoint = testEndpointFor(useSet);
         QueryRequestBody queryBody = new QueryRequestBody();
         QueryGeoContainsPointFilter filter = new QueryGeoContainsPointFilter();
         filter.binName = "binGeo";
         filter.point = new LngLat(1, 1);
         queryBody.filter = filter;
         QueryResponseBody res = queryHandler.perform(mockMVC, testEndpoint, queryBody);
-        Assert.assertEquals(5, res.getPagination().getTotalRecords());
+        Assertions.assertEquals(5, res.getPagination().getTotalRecords());
     }
 }
 

@@ -3,6 +3,16 @@ on:
   pull_request:
     branches:
       - master
+    # Only when Docker/image config changes; Package workflow already runs tests for code-only PRs
+    paths:
+      - 'Dockerfile'
+      - 'Dockerfile.*'
+      - 'Makefile'
+      - '.github/workflows/docker-build.yml'
+
+concurrency:
+  group: docker-build-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -21,7 +31,26 @@ jobs:
         uses: reugn/github-action-aerospike@v1
         with:
           server-version: 7.0.0.9
+      - name: Cache Gradle packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
       - name: Run tests
-        run: ./gradlew clean test --stacktrace
+        uses: nick-fields/retry@v3
+        with:
+          max_attempts: 2
+          timeout_minutes: 15
+          retry_wait_seconds: 30
+          command: ./gradlew clean test --stacktrace
       - name: Build x86 Image
-        run: make image
+        uses: nick-fields/retry@v3
+        with:
+          max_attempts: 2
+          timeout_minutes: 10
+          retry_wait_seconds: 20
+          command: make image

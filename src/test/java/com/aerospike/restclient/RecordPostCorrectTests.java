@@ -16,41 +16,35 @@
  */
 package com.aerospike.restclient;
 
+import com.aerospike.client.AerospikeException;
 import com.aerospike.client.Record;
 import com.aerospike.client.*;
 import com.aerospike.restclient.config.JSONMessageConverter;
 import com.aerospike.restclient.config.MsgPackConverter;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.junit.*;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameters;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.junit4.rules.SpringClassRule;
-import org.springframework.test.context.junit4.rules.SpringMethodRule;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
 import java.util.*;
+import java.util.stream.Stream;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@RunWith(Parameterized.class)
 @SpringBootTest
 public class RecordPostCorrectTests {
 
-    /* Needed to run as a Spring Boot test */
-    @ClassRule
-    public static final SpringClassRule springClassRule = new SpringClassRule();
-
-    @Rule
-    public final SpringMethodRule springMethodRule = new SpringMethodRule();
-
-    private final PostPerformer postPerformer;
     private MockMvc mockMVC;
 
     @Autowired
@@ -59,21 +53,49 @@ public class RecordPostCorrectTests {
     @Autowired
     private WebApplicationContext wac;
 
-    private final Key testKey;
-    private final Key intKey;
-    private final Key bytesKey;
-    private final String testEndpoint;
-    private final String digestEndpoint;
-    private final String intEndpoint;
-    private final String bytesEndpoint;
+    private static final byte[] KEY_BYTES = {1, 127, 127, 1};
 
-    @Before
-    public void setup() {
-        mockMVC = MockMvcBuilders.webAppContextSetup(wac).build();
+    public static Stream<Arguments> getParams() {
+        return Stream.of(
+                Arguments.of(new JSONPostPerformer(MediaType.APPLICATION_JSON.toString(), JSONMessageConverter.getJSONObjectMapper()), true),
+                Arguments.of(new MsgPackPostPerformer("application/msgpack", MsgPackConverter.getASMsgPackObjectMapper()), true),
+                Arguments.of(new JSONPostPerformer(MediaType.APPLICATION_JSON.toString(), JSONMessageConverter.getJSONObjectMapper()), false),
+                Arguments.of(new MsgPackPostPerformer("application/msgpack", MsgPackConverter.getASMsgPackObjectMapper()), false)
+        );
     }
 
-    @After
-    public void clean() {
+    private static Key testKeyFor(boolean useSet) {
+        return useSet ? new Key("test", "junit", "getput") : new Key("test", null, "getput");
+    }
+
+    private static Key intKeyFor(boolean useSet) {
+        return useSet ? new Key("test", "junit", 1) : new Key("test", null, 1);
+    }
+
+    private static Key bytesKeyFor(boolean useSet) {
+        return useSet ? new Key("test", "junit", KEY_BYTES) : new Key("test", null, KEY_BYTES);
+    }
+
+    private static String testEndpointFor(boolean useSet) {
+        return useSet ? ASTestUtils.buildEndpointV1("kvs", "test", "junit", "getput") : ASTestUtils.buildEndpointV1("kvs", "test", "getput");
+    }
+
+    private static String digestEndpointFor(Key testKey, boolean useSet) {
+        String urlDigest = Base64.getUrlEncoder().encodeToString(testKey.digest);
+        return useSet ? ASTestUtils.buildEndpointV1("kvs", "test", "junit", urlDigest) + "?keytype=DIGEST" : ASTestUtils.buildEndpointV1("kvs", "test", urlDigest) + "?keytype=DIGEST";
+    }
+
+    private static String bytesEndpointFor(boolean useSet) {
+        Key bytesKey = bytesKeyFor(useSet);
+        String urlBytes = Base64.getUrlEncoder().encodeToString((byte[]) bytesKey.userKey.getObject());
+        return useSet ? ASTestUtils.buildEndpointV1("kvs", "test", "junit", urlBytes) + "?keytype=BYTES" : ASTestUtils.buildEndpointV1("kvs", "test", urlBytes) + "?keytype=BYTES";
+    }
+
+    private static String intEndpointFor(boolean useSet) {
+        return useSet ? ASTestUtils.buildEndpointV1("kvs", "test", "junit", "1") + "?keytype=INTEGER" : ASTestUtils.buildEndpointV1("kvs", "test", "1") + "?keytype=INTEGER";
+    }
+
+    private static void cleanup(AerospikeClient client, Key testKey, Key intKey, Key bytesKey) {
         client.delete(null, testKey);
         try {
             client.delete(null, bytesKey);
@@ -85,246 +107,276 @@ public class RecordPostCorrectTests {
         }
     }
 
-    @Parameters
-    public static Object[] getParams() {
-        return new Object[][]{
-                {
-                        new JSONPostPerformer(MediaType.APPLICATION_JSON.toString(),
-                                JSONMessageConverter.getJSONObjectMapper()), true
-                }, {
-                        new MsgPackPostPerformer("application/msgpack", MsgPackConverter.getASMsgPackObjectMapper()),
-                        true
-                }, {
-                        new JSONPostPerformer(MediaType.APPLICATION_JSON.toString(),
-                                JSONMessageConverter.getJSONObjectMapper()), false
-                }, {
-                        new MsgPackPostPerformer("application/msgpack", MsgPackConverter.getASMsgPackObjectMapper()),
-                        false
-                }
-        };
+    @BeforeEach
+    public void setup() {
+        mockMVC = MockMvcBuilders.webAppContextSetup(wac).build();
     }
 
-    public RecordPostCorrectTests(PostPerformer performer, boolean useSet) {
-        if (useSet) {
-            this.testEndpoint = ASTestUtils.buildEndpointV1("kvs", "test", "junit", "getput");
-            this.testKey = new Key("test", "junit", "getput");
-            this.intKey = new Key("test", "junit", 1);
-            this.bytesKey = new Key("test", "junit", new byte[]{1, 127, 127, 1});
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void PutInteger(PostPerformer postPerformer, boolean useSet) throws Exception {
+        Key testKey = testKeyFor(useSet);
+        Key intKey = intKeyFor(useSet);
+        Key bytesKey = bytesKeyFor(useSet);
+        String testEndpoint = testEndpointFor(useSet);
+        try {
+            Map<String, Object> binMap = new HashMap<>();
+            binMap.put("integer", 12345);
+            postPerformer.perform(mockMVC, testEndpoint, binMap);
 
-            String urlDigest = Base64.getUrlEncoder().encodeToString(testKey.digest);
-            digestEndpoint = ASTestUtils.buildEndpointV1("kvs", "test", "junit", urlDigest) + "?keytype=DIGEST";
-
-            String urlBytes = Base64.getUrlEncoder().encodeToString((byte[]) bytesKey.userKey.getObject());
-            bytesEndpoint = ASTestUtils.buildEndpointV1("kvs", "test", "junit", urlBytes) + "?keytype=BYTES";
-
-            intEndpoint = ASTestUtils.buildEndpointV1("kvs", "test", "junit", "1") + "?keytype=INTEGER";
-        } else {
-            this.testEndpoint = ASTestUtils.buildEndpointV1("kvs", "test", "getput");
-            this.testKey = new Key("test", null, "getput");
-            this.intKey = new Key("test", null, 1);
-            this.bytesKey = new Key("test", null, new byte[]{1, 127, 127, 1});
-
-            String urlDigest = Base64.getUrlEncoder().encodeToString(testKey.digest);
-            digestEndpoint = ASTestUtils.buildEndpointV1("kvs", "test", urlDigest) + "?keytype=DIGEST";
-
-            String urlBytes = Base64.getUrlEncoder().encodeToString((byte[]) bytesKey.userKey.getObject());
-            bytesEndpoint = ASTestUtils.buildEndpointV1("kvs", "test", urlBytes) + "?keytype=BYTES";
-
-            intEndpoint = ASTestUtils.buildEndpointV1("kvs", "test", "1") + "?keytype=INTEGER";
+            Record record = client.get(null, testKey);
+            Assertions.assertEquals(record.bins.get("integer"), 12345L);
+        } finally {
+            cleanup(client, testKey, intKey, bytesKey);
         }
-        this.postPerformer = performer;
     }
 
-    @Test
-    public void PutInteger() throws Exception {
-        Map<String, Object> binMap = new HashMap<>();
-
-        binMap.put("integer", 12345);
-
-        postPerformer.perform(mockMVC, testEndpoint, binMap);
-
-        Record record = client.get(null, this.testKey);
-        Assert.assertEquals(record.bins.get("integer"), 12345L);
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void PutString(PostPerformer postPerformer, boolean useSet) throws Exception {
+        Key testKey = testKeyFor(useSet);
+        Key intKey = intKeyFor(useSet);
+        Key bytesKey = bytesKeyFor(useSet);
+        String testEndpoint = testEndpointFor(useSet);
+        try {
+            Map<String, Object> binMap = new HashMap<>();
+            binMap.put("string", "Aerospike");
+            postPerformer.perform(mockMVC, testEndpoint, binMap);
+            Record record = client.get(null, testKey);
+            Assertions.assertEquals(record.bins.get("string"), "Aerospike");
+        } finally {
+            cleanup(client, testKey, intKey, bytesKey);
+        }
     }
 
-    @Test
-    public void PutString() throws Exception {
-        Map<String, Object> binMap = new HashMap<>();
-
-        binMap.put("string", "Aerospike");
-
-        postPerformer.perform(mockMVC, testEndpoint, binMap);
-
-        Record record = client.get(null, this.testKey);
-        Assert.assertEquals(record.bins.get("string"), "Aerospike");
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void PutDouble(PostPerformer postPerformer, boolean useSet) throws Exception {
+        Key testKey = testKeyFor(useSet);
+        Key intKey = intKeyFor(useSet);
+        Key bytesKey = bytesKeyFor(useSet);
+        String testEndpoint = testEndpointFor(useSet);
+        try {
+            Map<String, Object> binMap = new HashMap<>();
+            binMap.put("double", 2.718);
+            postPerformer.perform(mockMVC, testEndpoint, binMap);
+            Record record = client.get(null, testKey);
+            Assertions.assertEquals(record.bins.get("double"), 2.718);
+        } finally {
+            cleanup(client, testKey, intKey, bytesKey);
+        }
     }
 
-    @Test
-    public void PutDouble() throws Exception {
-        Map<String, Object> binMap = new HashMap<>();
-
-        binMap.put("double", 2.718);
-
-        postPerformer.perform(mockMVC, testEndpoint, binMap);
-
-        Record record = client.get(null, this.testKey);
-        Assert.assertEquals(record.bins.get("double"), 2.718);
-    }
-
-    @Test
-    public void PutList() throws Exception {
-        Map<String, Object> binMap = new HashMap<>();
-
-        List<?> trueList = Arrays.asList(1L, "a", 3.5);
-
-        binMap.put("ary", trueList);
-
-        postPerformer.perform(mockMVC, testEndpoint, binMap);
-
-        Record record = client.get(null, this.testKey);
-
-        Assert.assertTrue(ASTestUtils.compareCollection((List<?>) record.bins.get("ary"), trueList));
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void PutList(PostPerformer postPerformer, boolean useSet) throws Exception {
+        Key testKey = testKeyFor(useSet);
+        Key intKey = intKeyFor(useSet);
+        Key bytesKey = bytesKeyFor(useSet);
+        String testEndpoint = testEndpointFor(useSet);
+        try {
+            Map<String, Object> binMap = new HashMap<>();
+            List<?> trueList = Arrays.asList(1L, "a", 3.5);
+            binMap.put("ary", trueList);
+            postPerformer.perform(mockMVC, testEndpoint, binMap);
+            Record record = client.get(null, testKey);
+            Assertions.assertTrue(ASTestUtils.compareCollection((List<?>) record.bins.get("ary"), trueList));
+        } finally {
+            cleanup(client, testKey, intKey, bytesKey);
+        }
     }
 
     @SuppressWarnings("unchecked")
-    @Test
-    public void PutMapStringKeys() throws Exception {
-        Map<String, Object> binMap = new HashMap<>();
-
-        Map<Object, Object> testMap = new HashMap<>();
-
-        testMap.put("string", "a string");
-        testMap.put("long", 2L);
-        testMap.put("double", 4.5);
-
-        binMap.put("map", testMap);
-
-        postPerformer.perform(mockMVC, testEndpoint, binMap);
-
-        Record record = client.get(null, this.testKey);
-
-        Assert.assertTrue(ASTestUtils.compareMap((Map<Object, Object>) record.bins.get("map"), testMap));
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void PutMapStringKeys(PostPerformer postPerformer, boolean useSet) throws Exception {
+        Key testKey = testKeyFor(useSet);
+        Key intKey = intKeyFor(useSet);
+        Key bytesKey = bytesKeyFor(useSet);
+        String testEndpoint = testEndpointFor(useSet);
+        try {
+            Map<Object, Object> testMap = new HashMap<>();
+            testMap.put("string", "a string");
+            testMap.put("long", 2L);
+            testMap.put("double", 4.5);
+            Map<String, Object> binMap = new HashMap<>();
+            binMap.put("map", testMap);
+            postPerformer.perform(mockMVC, testEndpoint, binMap);
+            Record record = client.get(null, testKey);
+            Assertions.assertTrue(ASTestUtils.compareMap((Map<Object, Object>) record.bins.get("map"), testMap));
+        } finally {
+            cleanup(client, testKey, intKey, bytesKey);
+        }
     }
 
-    @Test
-    public void PutWithIntegerKey() throws Exception {
-        Map<String, Object> binMap = new HashMap<>();
-
-        binMap.put("integer", 12345);
-
-        postPerformer.perform(mockMVC, intEndpoint, binMap);
-
-        Record record = client.get(null, this.intKey);
-        Assert.assertEquals(record.bins.get("integer"), 12345L);
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void PutWithIntegerKey(PostPerformer postPerformer, boolean useSet) throws Exception {
+        Key testKey = testKeyFor(useSet);
+        Key intKey = intKeyFor(useSet);
+        Key bytesKey = bytesKeyFor(useSet);
+        String intEndpoint = intEndpointFor(useSet);
+        try {
+            Map<String, Object> binMap = new HashMap<>();
+            binMap.put("integer", 12345);
+            postPerformer.perform(mockMVC, intEndpoint, binMap);
+            Record record = client.get(null, intKey);
+            Assertions.assertEquals(record.bins.get("integer"), 12345L);
+        } finally {
+            cleanup(client, testKey, intKey, bytesKey);
+        }
     }
 
-    @Test
-    public void PutWithBytesKey() throws Exception {
-        Map<String, Object> binMap = new HashMap<>();
-        binMap.put("integer", 12345);
-
-        postPerformer.perform(mockMVC, bytesEndpoint, binMap);
-
-        Record record = client.get(null, this.bytesKey);
-        Assert.assertEquals(record.bins.get("integer"), 12345L);
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void PutWithBytesKey(PostPerformer postPerformer, boolean useSet) throws Exception {
+        Key testKey = testKeyFor(useSet);
+        Key intKey = intKeyFor(useSet);
+        Key bytesKey = bytesKeyFor(useSet);
+        String bytesEndpoint = bytesEndpointFor(useSet);
+        try {
+            Map<String, Object> binMap = new HashMap<>();
+            binMap.put("integer", 12345);
+            postPerformer.perform(mockMVC, bytesEndpoint, binMap);
+            Record record = client.get(null, bytesKey);
+            Assertions.assertEquals(record.bins.get("integer"), 12345L);
+        } finally {
+            cleanup(client, testKey, intKey, bytesKey);
+        }
     }
 
-    @Test
-    public void PutWithDigestKey() throws Exception {
-        Map<String, Object> binMap = new HashMap<>();
-
-        binMap.put("integer", 12345);
-
-        postPerformer.perform(mockMVC, digestEndpoint, binMap);
-
-        Record record = client.get(null, this.testKey);
-        Assert.assertEquals(record.bins.get("integer"), 12345L);
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void PutWithDigestKey(PostPerformer postPerformer, boolean useSet) throws Exception {
+        Key testKey = testKeyFor(useSet);
+        Key intKey = intKeyFor(useSet);
+        Key bytesKey = bytesKeyFor(useSet);
+        String digestEndpoint = digestEndpointFor(testKey, useSet);
+        try {
+            Map<String, Object> binMap = new HashMap<>();
+            binMap.put("integer", 12345);
+            postPerformer.perform(mockMVC, digestEndpoint, binMap);
+            Record record = client.get(null, testKey);
+            Assertions.assertEquals(record.bins.get("integer"), 12345L);
+        } finally {
+            cleanup(client, testKey, intKey, bytesKey);
+        }
     }
 
-    @Test
-    public void PostByteArray() throws Exception {
-        Map<String, Object> binMap = new HashMap<>();
-        Map<String, String> byteArray = new HashMap<>();
-        byte[] arr = new byte[]{1, 101};
-        byteArray.put("type", "BYTE_ARRAY");
-        byteArray.put("value", Base64.getEncoder().encodeToString(arr));
-
-        binMap.put("byte_array", byteArray);
-
-        postPerformer.perform(mockMVC, testEndpoint, binMap);
-
-        Record record = client.get(null, this.testKey);
-        Assert.assertArrayEquals((byte[]) record.bins.get("byte_array"), arr);
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void PostByteArray(PostPerformer postPerformer, boolean useSet) throws Exception {
+        Key testKey = testKeyFor(useSet);
+        Key intKey = intKeyFor(useSet);
+        Key bytesKey = bytesKeyFor(useSet);
+        String testEndpoint = testEndpointFor(useSet);
+        try {
+            Map<String, Object> binMap = new HashMap<>();
+            Map<String, String> byteArray = new HashMap<>();
+            byte[] arr = new byte[]{1, 101};
+            byteArray.put("type", "BYTE_ARRAY");
+            byteArray.put("value", Base64.getEncoder().encodeToString(arr));
+            binMap.put("byte_array", byteArray);
+            postPerformer.perform(mockMVC, testEndpoint, binMap);
+            Record record = client.get(null, testKey);
+            Assertions.assertArrayEquals((byte[]) record.bins.get("byte_array"), arr);
+        } finally {
+            cleanup(client, testKey, intKey, bytesKey);
+        }
     }
 
-    @Test
-    public void PostBase64EncodedGeoJson() throws Exception {
-        Map<String, Object> binMap = new HashMap<>();
-        Map<String, String> geoJson = new HashMap<>();
-        String geoStr = "{\"type\": \"Point\", \"coordinates\": [-80.604333, 28.608389]}";
-        geoJson.put("type", "GEO_JSON");
-        geoJson.put("value", Base64.getEncoder().encodeToString(geoStr.getBytes()));
-
-        binMap.put("geo_json", geoJson);
-
-        postPerformer.perform(mockMVC, testEndpoint, binMap);
-
-        Record record = client.get(null, this.testKey);
-        Assert.assertEquals(((Value.GeoJSONValue) record.bins.get("geo_json")).getObject(), geoStr);
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void PostBase64EncodedGeoJson(PostPerformer postPerformer, boolean useSet) throws Exception {
+        Key testKey = testKeyFor(useSet);
+        Key intKey = intKeyFor(useSet);
+        Key bytesKey = bytesKeyFor(useSet);
+        String testEndpoint = testEndpointFor(useSet);
+        try {
+            Map<String, Object> binMap = new HashMap<>();
+            Map<String, String> geoJson = new HashMap<>();
+            String geoStr = "{\"type\": \"Point\", \"coordinates\": [-80.604333, 28.608389]}";
+            geoJson.put("type", "GEO_JSON");
+            geoJson.put("value", Base64.getEncoder().encodeToString(geoStr.getBytes()));
+            binMap.put("geo_json", geoJson);
+            postPerformer.perform(mockMVC, testEndpoint, binMap);
+            Record record = client.get(null, testKey);
+            Assertions.assertEquals(((Value.GeoJSONValue) record.bins.get("geo_json")).getObject(), geoStr);
+        } finally {
+            cleanup(client, testKey, intKey, bytesKey);
+        }
     }
 
-    @Test
-    public void PostGeoJson() throws Exception {
-        Map<String, Object> binMap = new HashMap<>();
-        Map<String, Object> geoJson = new HashMap<>();
-        List<Double> coordinates = new ArrayList<>();
-        coordinates.add(-80.604333);
-        coordinates.add(28.608389);
-        String geoStr = "{\"coordinates\":[-80.604333,28.608389],\"type\":\"Point\"}";
-        geoJson.put("coordinates", coordinates);
-        geoJson.put("type", "Point");
-
-        binMap.put("geo_json", geoJson);
-
-        postPerformer.perform(mockMVC, testEndpoint, binMap);
-
-        Record record = client.get(null, this.testKey);
-        Assert.assertEquals(((Value.GeoJSONValue) record.bins.get("geo_json")).getObject(), geoStr);
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void PostGeoJson(PostPerformer postPerformer, boolean useSet) throws Exception {
+        Key testKey = testKeyFor(useSet);
+        Key intKey = intKeyFor(useSet);
+        Key bytesKey = bytesKeyFor(useSet);
+        String testEndpoint = testEndpointFor(useSet);
+        try {
+            Map<String, Object> binMap = new HashMap<>();
+            Map<String, Object> geoJson = new HashMap<>();
+            List<Double> coordinates = new ArrayList<>();
+            coordinates.add(-80.604333);
+            coordinates.add(28.608389);
+            String geoStr = "{\"coordinates\":[-80.604333,28.608389],\"type\":\"Point\"}";
+            geoJson.put("coordinates", coordinates);
+            geoJson.put("type", "Point");
+            binMap.put("geo_json", geoJson);
+            postPerformer.perform(mockMVC, testEndpoint, binMap);
+            Record record = client.get(null, testKey);
+            Assertions.assertEquals(((Value.GeoJSONValue) record.bins.get("geo_json")).getObject(), geoStr);
+        } finally {
+            cleanup(client, testKey, intKey, bytesKey);
+        }
     }
 
-    @Ignore("Fails because GeoJSON can't be nested in a CDT for JSON. Only MSGPack")
-    @Test
-    public void PostNestedGeoJson() throws Exception {
-        Map<String, Object> binMap = new HashMap<>();
-        Map<String, Object> geoJson = new HashMap<>();
-        List<Double> coordinates = new ArrayList<>();
-        coordinates.add(-80.604333);
-        coordinates.add(28.608389);
-        String geoStr = "{\"coordinates\":[-80.604333,28.608389],\"type\":\"Point\"}";
-        geoJson.put("coordinates", coordinates);
-        geoJson.put("type", "Point");
-        List<Object> geoJsonList = new ArrayList<>();
-        geoJsonList.add(geoJson);
-
-        binMap.put("geo_json_list", geoJsonList);
-
-        postPerformer.perform(mockMVC, testEndpoint, binMap);
-
-        Record record = client.get(null, this.testKey);
-        List<Object> actualGeoJsonList = (List<Object>) record.bins.get("geo_json_list");
-        Assert.assertEquals(((Value.GeoJSONValue) actualGeoJsonList.get(0)).getObject(), geoStr);
+    @Disabled("Fails because GeoJSON can't be nested in a CDT for JSON. Only MSGPack")
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void PostNestedGeoJson(PostPerformer postPerformer, boolean useSet) throws Exception {
+        Key testKey = testKeyFor(useSet);
+        Key intKey = intKeyFor(useSet);
+        Key bytesKey = bytesKeyFor(useSet);
+        String testEndpoint = testEndpointFor(useSet);
+        try {
+            Map<String, Object> binMap = new HashMap<>();
+            Map<String, Object> geoJson = new HashMap<>();
+            List<Double> coordinates = new ArrayList<>();
+            coordinates.add(-80.604333);
+            coordinates.add(28.608389);
+            String geoStr = "{\"coordinates\":[-80.604333,28.608389],\"type\":\"Point\"}";
+            geoJson.put("coordinates", coordinates);
+            geoJson.put("type", "Point");
+            List<Object> geoJsonList = new ArrayList<>();
+            geoJsonList.add(geoJson);
+            binMap.put("geo_json_list", geoJsonList);
+            postPerformer.perform(mockMVC, testEndpoint, binMap);
+            Record record = client.get(null, testKey);
+            List<Object> actualGeoJsonList = (List<Object>) record.bins.get("geo_json_list");
+            Assertions.assertEquals(((Value.GeoJSONValue) actualGeoJsonList.get(0)).getObject(), geoStr);
+        } finally {
+            cleanup(client, testKey, intKey, bytesKey);
+        }
     }
 
-    @Test
-    public void PostBoolean() throws Exception {
-        Map<String, Object> binMap = new HashMap<>();
-
-        binMap.put("bool", true);
-
-        postPerformer.perform(mockMVC, testEndpoint, binMap);
-
-        Record record = client.get(null, this.testKey);
-        Assert.assertEquals((long) record.bins.get("bool"), 1L);
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void PostBoolean(PostPerformer postPerformer, boolean useSet) throws Exception {
+        Key testKey = testKeyFor(useSet);
+        Key intKey = intKeyFor(useSet);
+        Key bytesKey = bytesKeyFor(useSet);
+        String testEndpoint = testEndpointFor(useSet);
+        try {
+            Map<String, Object> binMap = new HashMap<>();
+            binMap.put("bool", true);
+            postPerformer.perform(mockMVC, testEndpoint, binMap);
+            Record record = client.get(null, testKey);
+            Assertions.assertEquals((long) record.bins.get("bool"), 1L);
+        } finally {
+            cleanup(client, testKey, intKey, bytesKey);
+        }
     }
 }
 

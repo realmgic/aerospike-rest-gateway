@@ -22,8 +22,10 @@ import com.aerospike.restclient.ASTestUtils;
 import com.aerospike.restclient.util.RestClientErrors.MalformedMsgPackError;
 import com.aerospike.restclient.util.deserializers.MsgPackOperationsParser;
 import com.aerospike.restclient.util.deserializers.MsgPackParser;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import org.msgpack.core.MessageBufferPacker;
 import org.msgpack.core.MessagePack;
 
@@ -51,7 +53,7 @@ public class MsgPackParserTest {
 
         Object val = parser.unpackValue();
 
-        Assert.assertEquals(testString, val);
+        Assertions.assertEquals(testString, val);
     }
 
     @Test
@@ -64,7 +66,7 @@ public class MsgPackParserTest {
 
         Object val = parser.unpackValue();
 
-        Assert.assertEquals(testVal, val);
+        Assertions.assertEquals(testVal, val);
     }
 
     @Test
@@ -78,7 +80,7 @@ public class MsgPackParserTest {
 
         Object val = parser.unpackValue();
 
-        Assert.assertEquals(bigLong, val);
+        Assertions.assertEquals(bigLong, val);
     }
 
     @Test
@@ -91,7 +93,7 @@ public class MsgPackParserTest {
 
         Object val = parser.unpackValue();
 
-        Assert.assertEquals(testFloat, val);
+        Assertions.assertEquals(testFloat, val);
     }
 
     @Test
@@ -102,7 +104,7 @@ public class MsgPackParserTest {
 
         Object val = parser.unpackValue();
 
-        Assert.assertEquals(new Value.NullValue(), val);
+        Assertions.assertEquals(new Value.NullValue(), val);
     }
 
     @Test
@@ -113,7 +115,7 @@ public class MsgPackParserTest {
 
         Object val = parser.unpackValue();
 
-        Assert.assertEquals(true, val);
+        Assertions.assertEquals(true, val);
     }
 
     @Test
@@ -127,7 +129,7 @@ public class MsgPackParserTest {
 
         Object val = parser.unpackValue();
 
-        Assert.assertArrayEquals(testByte, (byte[]) val);
+        Assertions.assertArrayEquals(testByte, (byte[]) val);
     }
 
     @Test
@@ -144,7 +146,7 @@ public class MsgPackParserTest {
 
         @SuppressWarnings("unchecked") List<Object> val = (List<Object>) parser.unpackValue();
 
-        Assert.assertArrayEquals(objects, val.toArray());
+        Assertions.assertArrayEquals(objects, val.toArray());
 
     }
 
@@ -172,7 +174,7 @@ public class MsgPackParserTest {
 
         @SuppressWarnings("unchecked") Map<Object, Object> val = (Map<Object, Object>) parser.unpackValue();
 
-        Assert.assertTrue(ASTestUtils.compareMap(map, val));
+        Assertions.assertTrue(ASTestUtils.compareMap(map, val));
 
     }
 
@@ -197,7 +199,7 @@ public class MsgPackParserTest {
 
         @SuppressWarnings("unchecked") List<Object> val = (List<Object>) parser.unpackValue();
 
-        Assert.assertArrayEquals(objects, val.toArray());
+        Assertions.assertArrayEquals(objects, val.toArray());
 
     }
 
@@ -215,11 +217,11 @@ public class MsgPackParserTest {
         MsgPackOperationsParser parser = new MsgPackOperationsParser(new ByteArrayInputStream(geoMsgPack));
         Object val = parser.unpackValue();
 
-        Assert.assertTrue(val instanceof GeoJSONValue);
-        Assert.assertEquals(((GeoJSONValue) val).toString(), geoString);
+        Assertions.assertTrue(val instanceof GeoJSONValue);
+        Assertions.assertEquals(((GeoJSONValue) val).toString(), geoString);
     }
 
-    @Test(expected = MalformedMsgPackError.class)
+    @Test
     public void testUnknownExtension() throws IOException {
 
         String geoString = "{\"coordinates\": [-122.0, 37.5], \"type\": \"Point\"}";
@@ -231,10 +233,10 @@ public class MsgPackParserTest {
         byte[] geoMsgPack = packer.toByteArray();
 
         MsgPackOperationsParser parser = new MsgPackOperationsParser(new ByteArrayInputStream(geoMsgPack));
-        parser.unpackValue(); // This should error
+        assertThrows(MalformedMsgPackError.class, () -> parser.unpackValue());
     }
 
-    @Test(expected = MalformedMsgPackError.class)
+    @Test
     public void testIncompleteArray() throws IOException {
         MessageBufferPacker packer = new MessagePack.PackerConfig().newBufferPacker();
 
@@ -242,13 +244,13 @@ public class MsgPackParserTest {
 
         MsgPackParser parser = new MsgPackParser(new ByteArrayInputStream(packer.toByteArray()));
 
-        parser.unpackValue();
+        assertThrows(MalformedMsgPackError.class, () -> parser.unpackValue());
     }
 
     /*
      * We can only safely handle numbers up to 2 ^ 63 - 1, this tests that we get an error outside of that range
      */
-    @Test(expected = MalformedMsgPackError.class)
+    @Test
     public void testValueOutsideOfLongRange() throws IOException {
         MessageBufferPacker packer = new MessagePack.PackerConfig().newBufferPacker();
         /* 2 ^ 64 -2  This is outside the range of a long*/
@@ -256,6 +258,6 @@ public class MsgPackParserTest {
         packer.packBigInteger(bigNum);
 
         MsgPackParser parser = new MsgPackParser(new ByteArrayInputStream(packer.toByteArray()));
-        parser.unpackValue();
+        assertThrows(MalformedMsgPackError.class, () -> parser.unpackValue());
     }
 }

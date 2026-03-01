@@ -18,8 +18,10 @@ package com.aerospike.restclient;
 
 import com.aerospike.client.AerospikeException;
 import com.aerospike.restclient.util.InfoResponseParser;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.util.List;
 import java.util.Map;
@@ -31,7 +33,7 @@ public class SindexResponseParserTests {
 
         List<Map<String, String>> indexInfoAry = InfoResponseParser.getIndexInformation(responseString);
 
-        Assert.assertEquals(indexInfoAry.size(), 3);
+        Assertions.assertEquals(indexInfoAry.size(), 3);
     }
 
     @Test
@@ -40,12 +42,12 @@ public class SindexResponseParserTests {
         List<Map<String, String>> indexInfoAry = InfoResponseParser.getIndexInformation(responseString);
         Map<String, String> indexInfo = indexInfoAry.get(0);
 
-        Assert.assertTrue(indexInfoNameEquals(indexInfo, "int_index_1"));
-        Assert.assertTrue(indexInfoBinEquals(indexInfo, "intbin1"));
-        Assert.assertTrue(indexInfoNamespaceEquals(indexInfo, "bar"));
-        Assert.assertTrue(indexInfoSetEquals(indexInfo, "demo"));
-        Assert.assertTrue(indexInfoTypeEquals(indexInfo, "NUMERIC"));
-        Assert.assertTrue(indexInfoIndexTypeEquals(indexInfo, "NONE"));
+        Assertions.assertTrue(indexInfoNameEquals(indexInfo, "int_index_1"));
+        Assertions.assertTrue(indexInfoBinEquals(indexInfo, "intbin1"));
+        Assertions.assertTrue(indexInfoNamespaceEquals(indexInfo, "bar"));
+        Assertions.assertTrue(indexInfoSetEquals(indexInfo, "demo"));
+        Assertions.assertTrue(indexInfoTypeEquals(indexInfo, "NUMERIC"));
+        Assertions.assertTrue(indexInfoIndexTypeEquals(indexInfo, "NONE"));
     }
 
     @Test
@@ -55,16 +57,16 @@ public class SindexResponseParserTests {
          */
         String responseString = "";
         List<Map<String, String>> indexInfoAry = InfoResponseParser.getIndexInformation(responseString);
-        Assert.assertEquals(0, indexInfoAry.size());
+        Assertions.assertEquals(0, indexInfoAry.size());
     }
 
-    @Test(expected = AerospikeException.class)
+    @Test
     public void testInvalidNamespaceResponse() throws Exception {
         /*
          * If there are no indexes we expect an empty list
          */
         String responseString = "ns_type=unknown\n";
-        InfoResponseParser.getIndexInformation(responseString);
+        assertThrows(AerospikeException.class, () -> InfoResponseParser.getIndexInformation(responseString));
     }
 
     private boolean indexInfoNameEquals(Map<String, String> indexInfo, String name) {

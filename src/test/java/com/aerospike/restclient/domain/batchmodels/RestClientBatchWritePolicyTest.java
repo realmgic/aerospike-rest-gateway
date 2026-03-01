@@ -25,27 +25,23 @@ import com.aerospike.restclient.ASTestMapper;
 import com.aerospike.restclient.IASTestMapper;
 import com.aerospike.restclient.config.JSONMessageConverter;
 import com.aerospike.restclient.config.MsgPackConverter;
-import org.junit.Assert;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.Stream;
 
-@RunWith(Parameterized.class)
 public class RestClientBatchWritePolicyTest {
-    private final IASTestMapper mapper;
-
-    @Parameterized.Parameters
-    public static Object[] getParams() {
-        return new Object[]{
-                new JsonRestClientBatchWritePolicyMapper(), new MsgPackRestClientBatchWritePolicyMapper()
-        };
-    }
-
-    public RestClientBatchWritePolicyTest(IASTestMapper mapper) {
-        this.mapper = mapper;
+    static Stream<Arguments> getParams() {
+        return Stream.of(
+                Arguments.of(new JsonRestClientBatchWritePolicyMapper()),
+                Arguments.of(new MsgPackRestClientBatchWritePolicyMapper())
+        );
     }
 
     @Test
@@ -53,8 +49,9 @@ public class RestClientBatchWritePolicyTest {
         new BatchWritePolicy();
     }
 
-    @Test
-    public void testObjectMappedBatchWriteConstructionStringKey() throws Exception {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testObjectMappedBatchWriteConstructionStringKey(IASTestMapper mapper) throws Exception {
         Map<String, Object> policyMap = new HashMap<>();
         policyMap.put("filterExp", "a filter");
         policyMap.put("recordExistsAction", "CREATE_ONLY");
@@ -67,18 +64,19 @@ public class RestClientBatchWritePolicyTest {
 
         BatchWritePolicy mappedBody = (BatchWritePolicy) mapper.bytesToObject(mapper.objectToBytes(policyMap));
 
-        Assert.assertEquals("a filter", mappedBody.filterExp);
-        Assert.assertEquals(RecordExistsAction.CREATE_ONLY, mappedBody.recordExistsAction);
-        Assert.assertEquals(CommitLevel.COMMIT_MASTER, mappedBody.commitLevel);
-        Assert.assertEquals(GenerationPolicy.EXPECT_GEN_GT, mappedBody.generationPolicy);
-        Assert.assertEquals(101, mappedBody.generation);
-        Assert.assertEquals(102, mappedBody.expiration);
-        Assert.assertTrue(mappedBody.durableDelete);
-        Assert.assertTrue(mappedBody.sendKey);
+        Assertions.assertEquals("a filter", mappedBody.filterExp);
+        Assertions.assertEquals(RecordExistsAction.CREATE_ONLY, mappedBody.recordExistsAction);
+        Assertions.assertEquals(CommitLevel.COMMIT_MASTER, mappedBody.commitLevel);
+        Assertions.assertEquals(GenerationPolicy.EXPECT_GEN_GT, mappedBody.generationPolicy);
+        Assertions.assertEquals(101, mappedBody.generation);
+        Assertions.assertEquals(102, mappedBody.expiration);
+        Assertions.assertTrue(mappedBody.durableDelete);
+        Assertions.assertTrue(mappedBody.sendKey);
     }
 
-    @Test
-    public void testToBatchWritePolicy() {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testToBatchWritePolicy(IASTestMapper mapper) {
         Expression expectedExp = Exp.build(Exp.ge(Exp.bin("a", Exp.Type.INT), Exp.bin("b", Exp.Type.INT)));
         String expectedExpStr = expectedExp.getBase64();
         BatchWritePolicy restPolicy = new BatchWritePolicy();
@@ -93,14 +91,14 @@ public class RestClientBatchWritePolicyTest {
 
         com.aerospike.client.policy.BatchWritePolicy actualPolicy = restPolicy.toBatchWritePolicy();
 
-        Assert.assertEquals(expectedExp, actualPolicy.filterExp);
-        Assert.assertEquals(RecordExistsAction.CREATE_ONLY, actualPolicy.recordExistsAction);
-        Assert.assertEquals(CommitLevel.COMMIT_MASTER, actualPolicy.commitLevel);
-        Assert.assertEquals(GenerationPolicy.EXPECT_GEN_EQUAL, actualPolicy.generationPolicy);
-        Assert.assertEquals(99, actualPolicy.generation);
-        Assert.assertEquals(100, actualPolicy.expiration);
-        Assert.assertTrue(actualPolicy.durableDelete);
-        Assert.assertTrue(actualPolicy.sendKey);
+        Assertions.assertEquals(expectedExp, actualPolicy.filterExp);
+        Assertions.assertEquals(RecordExistsAction.CREATE_ONLY, actualPolicy.recordExistsAction);
+        Assertions.assertEquals(CommitLevel.COMMIT_MASTER, actualPolicy.commitLevel);
+        Assertions.assertEquals(GenerationPolicy.EXPECT_GEN_EQUAL, actualPolicy.generationPolicy);
+        Assertions.assertEquals(99, actualPolicy.generation);
+        Assertions.assertEquals(100, actualPolicy.expiration);
+        Assertions.assertTrue(actualPolicy.durableDelete);
+        Assertions.assertTrue(actualPolicy.sendKey);
     }
 }
 

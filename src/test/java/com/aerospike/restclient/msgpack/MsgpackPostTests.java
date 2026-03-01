@@ -26,18 +26,17 @@ import com.aerospike.restclient.ASTestUtils;
 import com.aerospike.restclient.util.deserializers.MsgPackBinParser;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.msgpack.core.MessageBufferPacker;
 import org.msgpack.core.MessagePack;
 import org.msgpack.jackson.dataformat.MessagePackExtensionType;
 import org.msgpack.jackson.dataformat.MessagePackFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.junit4.SpringRunner;
+
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
@@ -51,7 +50,6 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@RunWith(SpringRunner.class)
 @SpringBootTest
 public class MsgpackPostTests {
 
@@ -71,13 +69,13 @@ public class MsgpackPostTests {
     private final TypeReference<Map<String, Object>> sOMapType = new TypeReference<>() {
     };
 
-    @Before
+    @BeforeEach
     public void setup() {
         mapper = new ObjectMapper(new MessagePackFactory());
         mockMVC = MockMvcBuilders.webAppContextSetup(wac).build();
     }
 
-    @After
+    @AfterEach
     public void clean() {
         client.delete(null, testKey);
     }
@@ -93,7 +91,7 @@ public class MsgpackPostTests {
 
         Record rec = client.get(null, testKey);
         byte[] realBytes = (byte[]) rec.bins.get("byte");
-        Assert.assertArrayEquals(testBytes, realBytes);
+        Assertions.assertArrayEquals(testBytes, realBytes);
     }
 
     @Test
@@ -114,7 +112,7 @@ public class MsgpackPostTests {
 
         Record rec = client.get(null, testKey);
         byte[] realBytes = (byte[]) rec.bins.get("my_bytes");
-        Assert.assertArrayEquals(testBytes, realBytes);
+        Assertions.assertArrayEquals(testBytes, realBytes);
     }
 
     @Test
@@ -133,7 +131,7 @@ public class MsgpackPostTests {
 
         byte[] realBytes = (byte[]) bins.get("byte");
 
-        Assert.assertArrayEquals(testBytes, realBytes);
+        Assertions.assertArrayEquals(testBytes, realBytes);
     }
 
     @Test
@@ -150,8 +148,8 @@ public class MsgpackPostTests {
 
         Record rec = client.get(null, testKey);
         GeoJSONValue geoV = (GeoJSONValue) rec.bins.get("geo");
-        Assert.assertEquals(ParticleType.GEOJSON, geoV.getType());
-        Assert.assertEquals(geoString, geoV.toString());
+        Assertions.assertEquals(ParticleType.GEOJSON, geoV.getType());
+        Assertions.assertEquals(geoString, geoV.toString());
     }
 
     @Test
@@ -171,8 +169,8 @@ public class MsgpackPostTests {
         @SuppressWarnings("unchecked") Map<String, Object> bins = (Map<String, Object>) retRec.get("bins");
         MessagePackExtensionType etype = (MessagePackExtensionType) bins.get("geo");
 
-        Assert.assertEquals(etype.getType(), ParticleType.GEOJSON);
-        Assert.assertEquals(new String(etype.getData(), StandardCharsets.UTF_8), geoString);
+        Assertions.assertEquals(etype.getType(), ParticleType.GEOJSON);
+        Assertions.assertEquals(new String(etype.getData(), StandardCharsets.UTF_8), geoString);
     }
 
     @Test
@@ -194,10 +192,10 @@ public class MsgpackPostTests {
         Record rec = client.get(null, testKey);
         @SuppressWarnings("unchecked") Map<String, Object> retMap = (Map<String, Object>) rec.bins.get("map");
 
-        Assert.assertEquals(retMap.size(), 1);
+        Assertions.assertEquals(retMap.size(), 1);
         GeoJSONValue geoV = (GeoJSONValue) retMap.get("geo");
-        Assert.assertEquals(ParticleType.GEOJSON, geoV.getType());
-        Assert.assertEquals(geoString, geoV.toString());
+        Assertions.assertEquals(ParticleType.GEOJSON, geoV.getType());
+        Assertions.assertEquals(geoString, geoV.toString());
     }
 
     @Test
@@ -221,8 +219,8 @@ public class MsgpackPostTests {
         Map<String, Object> map = (Map<String, Object>) bins.get("map");
         MessagePackExtensionType etype = (MessagePackExtensionType) map.get("geo");
 
-        Assert.assertEquals(etype.getType(), ParticleType.GEOJSON);
-        Assert.assertEquals(new String(etype.getData(), StandardCharsets.UTF_8), geoString);
+        Assertions.assertEquals(etype.getType(), ParticleType.GEOJSON);
+        Assertions.assertEquals(new String(etype.getData(), StandardCharsets.UTF_8), geoString);
     }
 
     @Test
@@ -241,8 +239,8 @@ public class MsgpackPostTests {
         Record rec = client.get(null, testKey);
         @SuppressWarnings("unchecked") Map<Long, Long> retMap = (Map<Long, Long>) rec.bins.get("map");
 
-        Assert.assertEquals(retMap.size(), 1);
-        Assert.assertEquals(retMap.get(1L), (Long) 2L);
+        Assertions.assertEquals(retMap.size(), 1);
+        Assertions.assertEquals(retMap.get(1L), (Long) 2L);
     }
 
     @Test
@@ -267,8 +265,8 @@ public class MsgpackPostTests {
         @SuppressWarnings("unchecked") Map<String, Object> bins = (Map<String, Object>) retRec.get("bins");
         @SuppressWarnings("unchecked") Map<Object, Object> lMap = (Map<Object, Object>) bins.get("map");
 
-        Assert.assertEquals(lMap.size(), 1);
-        Assert.assertEquals(lMap.get(1L), 2L);
+        Assertions.assertEquals(lMap.size(), 1);
+        Assertions.assertEquals(lMap.get(1L), 2L);
 
     }
 

@@ -33,33 +33,29 @@ import com.aerospike.restclient.domain.operationmodels.PutOperation;
 import com.aerospike.restclient.util.AerospikeAPIConstants;
 import com.aerospike.restclient.util.AerospikeAPIConstants.RecordKeyType;
 import com.aerospike.restclient.util.RestClientErrors;
-import org.junit.Assert;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameters;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 
-@RunWith(Parameterized.class)
 public class RestClientBatchBodyTest {
 
-    private final IASTestMapper mapper;
-    private final static String ns = "test";
-    private final static String set = "set";
+    private static final String ns = "test";
+    private static final String set = "set";
 
-    @Parameters
-    public static Object[] getParams() {
-        return new Object[]{
-                new JsonRestClientBatchRecordBodyMapper(), new MsgPackRestClientBatchRecordBodyMapper()
-        };
-    }
-
-    public RestClientBatchBodyTest(IASTestMapper mapper) {
-        this.mapper = mapper;
+    static Stream<Arguments> getParams() {
+        return Stream.of(
+                Arguments.of(new JsonRestClientBatchRecordBodyMapper()),
+                Arguments.of(new MsgPackRestClientBatchRecordBodyMapper())
+        );
     }
 
     /*
@@ -70,23 +66,25 @@ public class RestClientBatchBodyTest {
         new BatchRead();
     }
 
-    @Test
-    public void testObjectMappedBatchReadConstructionStringKey() throws Exception {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testObjectMappedBatchReadConstructionStringKey(IASTestMapper mapper) throws Exception {
         Map<String, Object> keyMap = getKeyMap("key", RecordKeyType.STRING);
         Map<String, Object> batchMap = getBatchReadBase();
         batchMap.put("key", keyMap);
 
         BatchRead mappedBody = (BatchRead) mapper.bytesToObject(mapper.objectToBytes(batchMap));
 
-        Assert.assertTrue(mappedBody.readAllBins);
-        Assert.assertArrayEquals(mappedBody.binNames, new String[]{});
+        Assertions.assertTrue(mappedBody.readAllBins);
+        Assertions.assertArrayEquals(mappedBody.binNames, new String[]{});
         RestClientKey rcKey = mappedBody.key;
 
-        Assert.assertEquals(RecordKeyType.STRING, rcKey.keyType);
+        Assertions.assertEquals(RecordKeyType.STRING, rcKey.keyType);
     }
 
-    @Test
-    public void testObjectMappedBatchReadConstructionWithBins() throws Exception {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testObjectMappedBatchReadConstructionWithBins(IASTestMapper mapper) throws Exception {
         Map<String, Object> keyMap = getKeyMap("key", RecordKeyType.STRING);
         Map<String, Object> batchMap = getBatchReadBase();
         batchMap.put("key", keyMap);
@@ -95,56 +93,59 @@ public class RestClientBatchBodyTest {
 
         BatchRead mappedBody = (BatchRead) mapper.bytesToObject(mapper.objectToBytes(batchMap));
 
-        Assert.assertTrue(mappedBody.readAllBins);
-        Assert.assertArrayEquals(mappedBody.binNames, bins);
+        Assertions.assertTrue(mappedBody.readAllBins);
+        Assertions.assertArrayEquals(mappedBody.binNames, bins);
         RestClientKey rcKey = mappedBody.key;
 
-        Assert.assertEquals(RecordKeyType.STRING, rcKey.keyType);
+        Assertions.assertEquals(RecordKeyType.STRING, rcKey.keyType);
     }
 
-    @Test
-    public void testObjectMappedBatchReadConstructionIntegerKey() throws Exception {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testObjectMappedBatchReadConstructionIntegerKey(IASTestMapper mapper) throws Exception {
         Map<String, Object> keyMap = getKeyMap(5, RecordKeyType.INTEGER);
         Map<String, Object> batchMap = getBatchReadBase();
         batchMap.put("key", keyMap);
 
         BatchRead mappedBody = (BatchRead) mapper.bytesToObject(mapper.objectToBytes(batchMap));
 
-        Assert.assertTrue(mappedBody.readAllBins);
-        Assert.assertArrayEquals(mappedBody.binNames, new String[]{});
+        Assertions.assertTrue(mappedBody.readAllBins);
+        Assertions.assertArrayEquals(mappedBody.binNames, new String[]{});
         RestClientKey rcKey = mappedBody.key;
 
-        Assert.assertEquals(RecordKeyType.INTEGER, rcKey.keyType);
+        Assertions.assertEquals(RecordKeyType.INTEGER, rcKey.keyType);
     }
 
-    @Test
-    public void testObjectMappedBatchReadConstructionBytesKey() throws Exception {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testObjectMappedBatchReadConstructionBytesKey(IASTestMapper mapper) throws Exception {
         Map<String, Object> keyMap = getKeyMap("lookslikebytes", RecordKeyType.BYTES);
         Map<String, Object> batchMap = getBatchReadBase();
         batchMap.put("key", keyMap);
 
         BatchRead mappedBody = (BatchRead) mapper.bytesToObject(mapper.objectToBytes(batchMap));
 
-        Assert.assertTrue(mappedBody.readAllBins);
-        Assert.assertArrayEquals(mappedBody.binNames, new String[]{});
+        Assertions.assertTrue(mappedBody.readAllBins);
+        Assertions.assertArrayEquals(mappedBody.binNames, new String[]{});
         RestClientKey rcKey = mappedBody.key;
 
-        Assert.assertEquals(RecordKeyType.BYTES, rcKey.keyType);
+        Assertions.assertEquals(RecordKeyType.BYTES, rcKey.keyType);
     }
 
-    @Test
-    public void testObjectMappedBatchReadConstructionDigestKey() throws Exception {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testObjectMappedBatchReadConstructionDigestKey(IASTestMapper mapper) throws Exception {
         Map<String, Object> keyMap = getKeyMap("digest", RecordKeyType.DIGEST);
         Map<String, Object> batchMap = getBatchReadBase();
         batchMap.put("key", keyMap);
 
         BatchRead mappedBody = (BatchRead) mapper.bytesToObject(mapper.objectToBytes(batchMap));
 
-        Assert.assertTrue(mappedBody.readAllBins);
-        Assert.assertArrayEquals(mappedBody.binNames, new String[]{});
+        Assertions.assertTrue(mappedBody.readAllBins);
+        Assertions.assertArrayEquals(mappedBody.binNames, new String[]{});
         RestClientKey rcKey = mappedBody.key;
 
-        Assert.assertEquals(RecordKeyType.DIGEST, rcKey.keyType);
+        Assertions.assertEquals(RecordKeyType.DIGEST, rcKey.keyType);
     }
 
     @Test
@@ -160,9 +161,9 @@ public class RestClientBatchBodyTest {
 
         com.aerospike.client.BatchRead convertedBatchRead = rCBRB.toBatchRecord();
 
-        Assert.assertFalse(convertedBatchRead.readAllBins);
-        Assert.assertTrue(ASTestUtils.compareKeys(realKey, convertedBatchRead.key));
-        Assert.assertArrayEquals(bins, convertedBatchRead.binNames);
+        Assertions.assertFalse(convertedBatchRead.readAllBins);
+        Assertions.assertTrue(ASTestUtils.compareKeys(realKey, convertedBatchRead.key));
+        Assertions.assertArrayEquals(bins, convertedBatchRead.binNames);
     }
 
     @Test
@@ -178,9 +179,9 @@ public class RestClientBatchBodyTest {
 
         com.aerospike.client.BatchRead convertedBatchRead = rCBRB.toBatchRecord();
 
-        Assert.assertTrue(convertedBatchRead.readAllBins);
-        Assert.assertTrue(ASTestUtils.compareKeys(realKey, convertedBatchRead.key));
-        Assert.assertNull(convertedBatchRead.binNames);
+        Assertions.assertTrue(convertedBatchRead.readAllBins);
+        Assertions.assertTrue(ASTestUtils.compareKeys(realKey, convertedBatchRead.key));
+        Assertions.assertNull(convertedBatchRead.binNames);
     }
 
     @Test
@@ -193,16 +194,16 @@ public class RestClientBatchBodyTest {
 
         com.aerospike.client.BatchRead convertedBatchRead = rCBRB.toBatchRecord();
 
-        Assert.assertFalse(convertedBatchRead.readAllBins);
-        Assert.assertTrue(ASTestUtils.compareKeys(realKey, convertedBatchRead.key));
-        Assert.assertNull(convertedBatchRead.binNames);
+        Assertions.assertFalse(convertedBatchRead.readAllBins);
+        Assertions.assertTrue(ASTestUtils.compareKeys(realKey, convertedBatchRead.key));
+        Assertions.assertNull(convertedBatchRead.binNames);
     }
 
-    @Test(expected = RestClientErrors.InvalidKeyError.class)
+    @Test
     public void testConversionWithNullKey() {
         BatchRead rCBRB = new BatchRead();
         rCBRB.key = null;
-        rCBRB.toBatchRecord();
+        Assertions.assertThrows(RestClientErrors.InvalidKeyError.class, rCBRB::toBatchRecord);
     }
 
     /*
@@ -214,8 +215,9 @@ public class RestClientBatchBodyTest {
         new BatchWrite();
     }
 
-    @Test
-    public void testObjectMappedBatchWriteConstructionStringKey() throws Exception {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testObjectMappedBatchWriteConstructionStringKey(IASTestMapper mapper) throws Exception {
         Map<String, Object> keyMap = getKeyMap("key", RecordKeyType.STRING);
         Map<String, Object> batchMap = getBatchWriteBase();
         batchMap.put("key", keyMap);
@@ -224,12 +226,13 @@ public class RestClientBatchBodyTest {
 
         RestClientKey rcKey = mappedBody.key;
 
-        Assert.assertEquals(RecordKeyType.STRING, rcKey.keyType);
-        Assert.assertEquals(mappedBody.opsList, new ArrayList<>());
+        Assertions.assertEquals(RecordKeyType.STRING, rcKey.keyType);
+        Assertions.assertEquals(mappedBody.opsList, new ArrayList<>());
     }
 
-    @Test
-    public void testObjectMappedBatchWriteConstructionWithOps() throws Exception {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testObjectMappedBatchWriteConstructionWithOps(IASTestMapper mapper) throws Exception {
         Map<String, Object> keyMap = getKeyMap("key", RecordKeyType.STRING);
         Map<String, Object> expectedBatchMap = getBatchWriteBase();
         List<Map<String, Object>> expectedOpsListMap = new ArrayList<>();
@@ -252,12 +255,13 @@ public class RestClientBatchBodyTest {
         BatchWrite actualBody = (BatchWrite) mapper.bytesToObject(mapper.objectToBytes(expectedBatchMap));
         RestClientKey actualKey = actualBody.key;
 
-        Assert.assertEquals(2, actualBody.opsList.size());
-        Assert.assertEquals(RecordKeyType.STRING, actualKey.keyType);
+        Assertions.assertEquals(2, actualBody.opsList.size());
+        Assertions.assertEquals(RecordKeyType.STRING, actualKey.keyType);
     }
 
-    @Test
-    public void testObjectMappedBatchWriteConstructionWithPolicy() throws Exception {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testObjectMappedBatchWriteConstructionWithPolicy(IASTestMapper mapper) throws Exception {
         Map<String, Object> keyMap = getKeyMap("key", RecordKeyType.STRING);
         Map<String, Object> batchWritePolicy = new HashMap<>();
         Map<String, Object> expectedBatchMap = getBatchWriteBase();
@@ -270,13 +274,14 @@ public class RestClientBatchBodyTest {
         BatchWrite actualBody = (BatchWrite) mapper.bytesToObject(mapper.objectToBytes(expectedBatchMap));
         RestClientKey actualKey = actualBody.key;
 
-        Assert.assertEquals(actualBody.policy.recordExistsAction, RecordExistsAction.UPDATE);
-        Assert.assertEquals(0, actualBody.opsList.size());
-        Assert.assertEquals(RecordKeyType.STRING, actualKey.keyType);
+        Assertions.assertEquals(actualBody.policy.recordExistsAction, RecordExistsAction.UPDATE);
+        Assertions.assertEquals(0, actualBody.opsList.size());
+        Assertions.assertEquals(RecordKeyType.STRING, actualKey.keyType);
     }
 
-    @Test
-    public void testObjectMappedBatchWriteConstructionIntegerKey() throws Exception {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testObjectMappedBatchWriteConstructionIntegerKey(IASTestMapper mapper) throws Exception {
         Map<String, Object> keyMap = getKeyMap(5, RecordKeyType.INTEGER);
         Map<String, Object> batchMap = getBatchWriteBase();
         batchMap.put("key", keyMap);
@@ -285,12 +290,13 @@ public class RestClientBatchBodyTest {
 
         RestClientKey rcKey = mappedBody.key;
 
-        Assert.assertEquals(mappedBody.opsList, new ArrayList<>());
-        Assert.assertEquals(RecordKeyType.INTEGER, rcKey.keyType);
+        Assertions.assertEquals(mappedBody.opsList, new ArrayList<>());
+        Assertions.assertEquals(RecordKeyType.INTEGER, rcKey.keyType);
     }
 
-    @Test
-    public void testObjectMappedBatchWriteConstructionBytesKey() throws Exception {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testObjectMappedBatchWriteConstructionBytesKey(IASTestMapper mapper) throws Exception {
         Map<String, Object> keyMap = getKeyMap("lookslikebytes", RecordKeyType.BYTES);
         Map<String, Object> batchMap = getBatchWriteBase();
         batchMap.put("key", keyMap);
@@ -299,12 +305,13 @@ public class RestClientBatchBodyTest {
 
         RestClientKey rcKey = mappedBody.key;
 
-        Assert.assertEquals(RecordKeyType.BYTES, rcKey.keyType);
-        Assert.assertEquals(mappedBody.opsList, new ArrayList<>());
+        Assertions.assertEquals(RecordKeyType.BYTES, rcKey.keyType);
+        Assertions.assertEquals(mappedBody.opsList, new ArrayList<>());
     }
 
-    @Test
-    public void testObjectMappedBatchWriteConstructionDigestKey() throws Exception {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testObjectMappedBatchWriteConstructionDigestKey(IASTestMapper mapper) throws Exception {
         Map<String, Object> keyMap = getKeyMap("digest", RecordKeyType.DIGEST);
         Map<String, Object> batchMap = getBatchWriteBase();
         batchMap.put("key", keyMap);
@@ -313,8 +320,8 @@ public class RestClientBatchBodyTest {
 
         RestClientKey rcKey = mappedBody.key;
 
-        Assert.assertEquals(RecordKeyType.DIGEST, rcKey.keyType);
-        Assert.assertEquals(mappedBody.opsList, new ArrayList<>());
+        Assertions.assertEquals(RecordKeyType.DIGEST, rcKey.keyType);
+        Assertions.assertEquals(mappedBody.opsList, new ArrayList<>());
     }
 
     @Test
@@ -333,15 +340,15 @@ public class RestClientBatchBodyTest {
 
         com.aerospike.client.BatchWrite convertedBatchWrite = rCBRB.toBatchRecord();
 
-        Assert.assertTrue(ASTestUtils.compareKeys(realKey, convertedBatchWrite.key));
-        Assert.assertNull(convertedBatchWrite.policy);
+        Assertions.assertTrue(ASTestUtils.compareKeys(realKey, convertedBatchWrite.key));
+        Assertions.assertNull(convertedBatchWrite.policy);
 
-        Assert.assertEquals(convertedBatchWrite.ops[0].type, Operation.Type.ADD);
-        Assert.assertEquals(convertedBatchWrite.ops[0].binName, "bin1");
-        Assert.assertEquals(convertedBatchWrite.ops[0].value, Value.get(1));
-        Assert.assertEquals(convertedBatchWrite.ops[1].type, Operation.Type.WRITE);
-        Assert.assertEquals(convertedBatchWrite.ops[1].binName, "bin2");
-        Assert.assertEquals(convertedBatchWrite.ops[1].value, Value.get("new val"));
+        Assertions.assertEquals(convertedBatchWrite.ops[0].type, Operation.Type.ADD);
+        Assertions.assertEquals(convertedBatchWrite.ops[0].binName, "bin1");
+        Assertions.assertEquals(convertedBatchWrite.ops[0].value, Value.get(1));
+        Assertions.assertEquals(convertedBatchWrite.ops[1].type, Operation.Type.WRITE);
+        Assertions.assertEquals(convertedBatchWrite.ops[1].binName, "bin2");
+        Assertions.assertEquals(convertedBatchWrite.ops[1].value, Value.get("new val"));
     }
 
     /*
@@ -356,8 +363,9 @@ public class RestClientBatchBodyTest {
         new BatchUDFPolicy();
     }
 
-    @Test
-    public void testObjectMappedBatchUDFConstructionStringKey() throws Exception {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testObjectMappedBatchUDFConstructionStringKey(IASTestMapper mapper) throws Exception {
         Map<String, Object> keyMap = getKeyMap("key", RecordKeyType.STRING);
         Map<String, Object> batchMap = getBatchUDFBase();
         batchMap.put("key", keyMap);
@@ -366,15 +374,16 @@ public class RestClientBatchBodyTest {
 
         RestClientKey rcKey = mappedBody.key;
 
-        Assert.assertEquals(RecordKeyType.STRING, rcKey.keyType);
-        Assert.assertEquals(udfPkg, mappedBody.packageName);
-        Assert.assertEquals(udfFunc, mappedBody.functionName);
-        Assert.assertNull(mappedBody.functionArgs);
-        Assert.assertNull(mappedBody.policy);
+        Assertions.assertEquals(RecordKeyType.STRING, rcKey.keyType);
+        Assertions.assertEquals(udfPkg, mappedBody.packageName);
+        Assertions.assertEquals(udfFunc, mappedBody.functionName);
+        Assertions.assertNull(mappedBody.functionArgs);
+        Assertions.assertNull(mappedBody.policy);
     }
 
-    @Test
-    public void testObjectMappedBatchUDFConstructionWithFunctionArgs() throws Exception {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testObjectMappedBatchUDFConstructionWithFunctionArgs(IASTestMapper mapper) throws Exception {
         Map<String, Object> keyMap = getKeyMap("key", RecordKeyType.STRING);
         Map<String, Object> batchMap = getBatchUDFBase();
         List<Object> expectedFunctionArgs = new ArrayList<>();
@@ -390,15 +399,16 @@ public class RestClientBatchBodyTest {
 
         RestClientKey rcKey = mappedBody.key;
 
-        Assert.assertEquals(RecordKeyType.STRING, rcKey.keyType);
-        Assert.assertEquals(udfPkg, mappedBody.packageName);
-        Assert.assertEquals(udfFunc, mappedBody.functionName);
-        Assert.assertTrue(ASTestUtils.compareCollection(mappedBody.functionArgs, expectedFunctionArgs));
-        Assert.assertNull(mappedBody.policy);
+        Assertions.assertEquals(RecordKeyType.STRING, rcKey.keyType);
+        Assertions.assertEquals(udfPkg, mappedBody.packageName);
+        Assertions.assertEquals(udfFunc, mappedBody.functionName);
+        Assertions.assertTrue(ASTestUtils.compareCollection(mappedBody.functionArgs, expectedFunctionArgs));
+        Assertions.assertNull(mappedBody.policy);
     }
 
-    @Test
-    public void testObjectMappedBatchUDFConstructionWithPolicy() throws Exception {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testObjectMappedBatchUDFConstructionWithPolicy(IASTestMapper mapper) throws Exception {
         Map<String, Object> keyMap = getKeyMap("key", RecordKeyType.STRING);
         Map<String, Object> batchUDFPolicy = new HashMap<>();
         Map<String, Object> expectedBatchMap = getBatchUDFBase();
@@ -410,12 +420,13 @@ public class RestClientBatchBodyTest {
         BatchUDF actualBody = (BatchUDF) mapper.bytesToObject(mapper.objectToBytes(expectedBatchMap));
         RestClientKey actualKey = actualBody.key;
 
-        Assert.assertTrue(actualBody.policy.sendKey);
-        Assert.assertEquals(RecordKeyType.STRING, actualKey.keyType);
+        Assertions.assertTrue(actualBody.policy.sendKey);
+        Assertions.assertEquals(RecordKeyType.STRING, actualKey.keyType);
     }
 
-    @Test
-    public void testObjectMappedBatchUDFConstructionIntegerKey() throws Exception {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testObjectMappedBatchUDFConstructionIntegerKey(IASTestMapper mapper) throws Exception {
         Map<String, Object> keyMap = getKeyMap(5, RecordKeyType.INTEGER);
         Map<String, Object> batchMap = getBatchUDFBase();
         batchMap.put("key", keyMap);
@@ -424,11 +435,12 @@ public class RestClientBatchBodyTest {
 
         RestClientKey rcKey = mappedBody.key;
 
-        Assert.assertEquals(RecordKeyType.INTEGER, rcKey.keyType);
+        Assertions.assertEquals(RecordKeyType.INTEGER, rcKey.keyType);
     }
 
-    @Test
-    public void testObjectMappedBatchUDFConstructionBytesKey() throws Exception {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testObjectMappedBatchUDFConstructionBytesKey(IASTestMapper mapper) throws Exception {
         Map<String, Object> keyMap = getKeyMap("lookslikebytes", RecordKeyType.BYTES);
         Map<String, Object> batchMap = getBatchUDFBase();
         batchMap.put("key", keyMap);
@@ -437,11 +449,12 @@ public class RestClientBatchBodyTest {
 
         RestClientKey rcKey = mappedBody.key;
 
-        Assert.assertEquals(RecordKeyType.BYTES, rcKey.keyType);
+        Assertions.assertEquals(RecordKeyType.BYTES, rcKey.keyType);
     }
 
-    @Test
-    public void testObjectMappedBatchUDFConstructionDigestKey() throws Exception {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testObjectMappedBatchUDFConstructionDigestKey(IASTestMapper mapper) throws Exception {
         Map<String, Object> keyMap = getKeyMap("digest", RecordKeyType.DIGEST);
         Map<String, Object> batchMap = getBatchUDFBase();
         batchMap.put("key", keyMap);
@@ -450,7 +463,7 @@ public class RestClientBatchBodyTest {
 
         RestClientKey rcKey = mappedBody.key;
 
-        Assert.assertEquals(RecordKeyType.DIGEST, rcKey.keyType);
+        Assertions.assertEquals(RecordKeyType.DIGEST, rcKey.keyType);
     }
 
     @Test
@@ -458,8 +471,9 @@ public class RestClientBatchBodyTest {
         new BatchDeletePolicy();
     }
 
-    @Test
-    public void testObjectMappedBatchDeleteConstructionStringKey() throws Exception {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testObjectMappedBatchDeleteConstructionStringKey(IASTestMapper mapper) throws Exception {
         Map<String, Object> keyMap = getKeyMap("key", RecordKeyType.STRING);
         Map<String, Object> batchMap = getBatchDeleteBase();
         batchMap.put("key", keyMap);
@@ -468,12 +482,13 @@ public class RestClientBatchBodyTest {
 
         RestClientKey rcKey = mappedBody.key;
 
-        Assert.assertEquals(RecordKeyType.STRING, rcKey.keyType);
-        Assert.assertNull(mappedBody.policy);
+        Assertions.assertEquals(RecordKeyType.STRING, rcKey.keyType);
+        Assertions.assertNull(mappedBody.policy);
     }
 
-    @Test
-    public void testObjectMappedBatchDeleteConstructionWithFunctionArgs() throws Exception {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testObjectMappedBatchDeleteConstructionWithFunctionArgs(IASTestMapper mapper) throws Exception {
         Map<String, Object> keyMap = getKeyMap("key", RecordKeyType.STRING);
         Map<String, Object> batchMap = getBatchDeleteBase();
 
@@ -483,12 +498,13 @@ public class RestClientBatchBodyTest {
 
         RestClientKey rcKey = mappedBody.key;
 
-        Assert.assertEquals(RecordKeyType.STRING, rcKey.keyType);
-        Assert.assertNull(mappedBody.policy);
+        Assertions.assertEquals(RecordKeyType.STRING, rcKey.keyType);
+        Assertions.assertNull(mappedBody.policy);
     }
 
-    @Test
-    public void testObjectMappedBatchDeleteConstructionWithPolicy() throws Exception {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testObjectMappedBatchDeleteConstructionWithPolicy(IASTestMapper mapper) throws Exception {
         Map<String, Object> keyMap = getKeyMap("key", RecordKeyType.STRING);
         Map<String, Object> batchDeletePolicy = new HashMap<>();
         Map<String, Object> expectedBatchMap = getBatchDeleteBase();
@@ -500,12 +516,13 @@ public class RestClientBatchBodyTest {
         BatchDelete actualBody = (BatchDelete) mapper.bytesToObject(mapper.objectToBytes(expectedBatchMap));
         RestClientKey actualKey = actualBody.key;
 
-        Assert.assertEquals(actualBody.policy.commitLevel, CommitLevel.COMMIT_MASTER);
-        Assert.assertEquals(RecordKeyType.STRING, actualKey.keyType);
+        Assertions.assertEquals(actualBody.policy.commitLevel, CommitLevel.COMMIT_MASTER);
+        Assertions.assertEquals(RecordKeyType.STRING, actualKey.keyType);
     }
 
-    @Test
-    public void testObjectMappedBatchDeleteConstructionIntegerKey() throws Exception {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testObjectMappedBatchDeleteConstructionIntegerKey(IASTestMapper mapper) throws Exception {
         Map<String, Object> keyMap = getKeyMap(5, RecordKeyType.INTEGER);
         Map<String, Object> batchMap = getBatchDeleteBase();
         batchMap.put("key", keyMap);
@@ -514,11 +531,12 @@ public class RestClientBatchBodyTest {
 
         RestClientKey rcKey = mappedBody.key;
 
-        Assert.assertEquals(RecordKeyType.INTEGER, rcKey.keyType);
+        Assertions.assertEquals(RecordKeyType.INTEGER, rcKey.keyType);
     }
 
-    @Test
-    public void testObjectMappedBatchDeleteConstructionBytesKey() throws Exception {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testObjectMappedBatchDeleteConstructionBytesKey(IASTestMapper mapper) throws Exception {
         Map<String, Object> keyMap = getKeyMap("lookslikebytes", RecordKeyType.BYTES);
         Map<String, Object> batchMap = getBatchDeleteBase();
         batchMap.put("key", keyMap);
@@ -527,11 +545,12 @@ public class RestClientBatchBodyTest {
 
         RestClientKey rcKey = mappedBody.key;
 
-        Assert.assertEquals(RecordKeyType.BYTES, rcKey.keyType);
+        Assertions.assertEquals(RecordKeyType.BYTES, rcKey.keyType);
     }
 
-    @Test
-    public void testObjectMappedBatchDeleteConstructionDigestKey() throws Exception {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testObjectMappedBatchDeleteConstructionDigestKey(IASTestMapper mapper) throws Exception {
         Map<String, Object> keyMap = getKeyMap("digest", RecordKeyType.DIGEST);
         Map<String, Object> batchMap = getBatchDeleteBase();
         batchMap.put("key", keyMap);
@@ -540,7 +559,7 @@ public class RestClientBatchBodyTest {
 
         RestClientKey rcKey = mappedBody.key;
 
-        Assert.assertEquals(RecordKeyType.DIGEST, rcKey.keyType);
+        Assertions.assertEquals(RecordKeyType.DIGEST, rcKey.keyType);
     }
 
     /* HELPERS */

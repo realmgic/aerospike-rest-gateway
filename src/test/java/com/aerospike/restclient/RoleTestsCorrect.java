@@ -26,16 +26,20 @@ import com.aerospike.restclient.domain.RestClientPrivilege;
 import com.aerospike.restclient.domain.RestClientRole;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.junit.*;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameters;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Assumptions;
+
 import org.msgpack.jackson.dataformat.MessagePackFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.junit4.rules.SpringClassRule;
-import org.springframework.test.context.junit4.rules.SpringMethodRule;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
@@ -44,31 +48,20 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Stream;
 
+import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@RunWith(Parameterized.class)
 @SpringBootTest
 public class RoleTestsCorrect {
 
-    @ClassRule
-    public static final SpringClassRule springClassRule = new SpringClassRule();
-
-    @Rule
-    public final SpringMethodRule springMethodRule = new SpringMethodRule();
-
-    private final RestRoleHandler handler;
-
-    @Parameters
-    public static Object[] getParams() {
-        return new Object[]{
-                new JSONRestRoleHandler(), new MsgPackRestRoleHandler()
-        };
-    }
-
-    public RoleTestsCorrect(RestRoleHandler handler) {
-        this.handler = handler;
+    static Stream<Arguments> getParams() {
+        return Stream.of(
+                Arguments.of(new JSONRestRoleHandler()),
+                Arguments.of(new MsgPackRestRoleHandler())
+        );
     }
 
     String endpoint = "/v1/admin/role";
@@ -92,12 +85,12 @@ public class RoleTestsCorrect {
     @Autowired
     private AerospikeClient client;
 
-    @BeforeClass
+    @BeforeAll
     public static void okToRun() {
-        Assume.assumeTrue(ASTestUtils.runningWithAuth());
+        Assumptions.assumeTrue(ASTestUtils.runningWithAuth());
     }
 
-    @Before
+    @BeforeEach
     public void setup() throws InterruptedException {
         mockMVC = MockMvcBuilders.webAppContextSetup(wac).build();
         readTestDemo = new Privilege();
@@ -126,7 +119,7 @@ public class RoleTestsCorrect {
         Thread.sleep(1000);
     }
 
-    @After
+    @AfterEach
     public void tearDown() {
         for (String role : createdRoles) {
             try {
@@ -141,22 +134,25 @@ public class RoleTestsCorrect {
         }
     }
 
-    @Test
-    public void getRoles() throws Exception {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void getRoles(RestRoleHandler handler) throws Exception {
         List<RestClientRole> roleList = handler.getRoles(mockMVC,
                 endpoint);//objectMapper.readValue(resJson, listRoleType);
-        Assert.assertTrue(rcRolesListContainsRole(roleList, createdRole));
+        Assertions.assertTrue(rcRolesListContainsRole(roleList, createdRole));
     }
 
-    @Test
-    public void getRole() throws Exception {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void getRole(RestRoleHandler handler) throws Exception {
         RestClientRole rcRole = handler.getRole(mockMVC,
                 endpoint + "/" + TestRoleName);//objectMapper.readValue(resJson, roleType);
-        Assert.assertTrue(roleEquals(rcRole.toRole(), createdRole));
+        Assertions.assertTrue(roleEquals(rcRole.toRole(), createdRole));
     }
 
-    @Test
-    public void deleteRole() throws Exception {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void deleteRole(RestRoleHandler handler) throws Exception {
         /* Make sure the role we just created matches what we get back */
         boolean exists = true;
         mockMVC.perform(delete(endpoint + "/" + TestRoleName)).andExpect(status().isAccepted());
@@ -169,11 +165,12 @@ public class RoleTestsCorrect {
                 exists = false;
             }
         }
-        Assert.assertFalse(exists);
+        Assertions.assertFalse(exists);
     }
 
-    @Test
-    public void createRole() throws Exception {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void createRole(RestRoleHandler handler) throws Exception {
         Role testRole = new Role();
         testRole.name = "crTestRole";
         Privilege crPrivilege = new Privilege();
@@ -190,11 +187,12 @@ public class RoleTestsCorrect {
         Thread.sleep(1000);
 
         Role fetchedRole = client.queryRole(null, testRole.name);
-        Assert.assertTrue(roleEquals(fetchedRole, testRole));
+        Assertions.assertTrue(roleEquals(fetchedRole, testRole));
     }
 
-    @Test
-    public void grantPrivilege() throws Exception {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void grantPrivilege(RestRoleHandler handler) throws Exception {
         Privilege crPrivilege = new Privilege();
         crPrivilege.code = PrivilegeCode.SYS_ADMIN;
         RestClientPrivilege[] privAry = new RestClientPrivilege[1];
@@ -205,11 +203,12 @@ public class RoleTestsCorrect {
         Thread.sleep(1000);
 
         Role fetchedRole = client.queryRole(null, TestRoleName);
-        Assert.assertTrue(RoleHasPrivilege(fetchedRole, crPrivilege));
+        Assertions.assertTrue(RoleHasPrivilege(fetchedRole, crPrivilege));
     }
 
-    @Test
-    public void revokePrivilege() throws Exception {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void revokePrivilege(RestRoleHandler handler) throws Exception {
         RestClientPrivilege[] privAry = new RestClientPrivilege[1];
         privAry[0] = new RestClientPrivilege(readWriteTestProd);
 
@@ -217,7 +216,7 @@ public class RoleTestsCorrect {
 
         Thread.sleep(1000);
         Role fetchedRole = client.queryRole(null, TestRoleName);
-        Assert.assertFalse(RoleHasPrivilege(fetchedRole, readWriteTestProd));
+        Assertions.assertFalse(RoleHasPrivilege(fetchedRole, readWriteTestProd));
     }
 
     /*

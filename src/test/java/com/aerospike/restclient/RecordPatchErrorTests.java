@@ -17,38 +17,26 @@
 package com.aerospike.restclient;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.junit.Before;
-import org.junit.ClassRule;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameters;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.junit4.rules.SpringClassRule;
-import org.springframework.test.context.junit4.rules.SpringMethodRule;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.Stream;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@RunWith(Parameterized.class)
 @SpringBootTest
 public class RecordPatchErrorTests {
-
-    /* Needed to run as a Spring Boot test */
-    @ClassRule
-    public static final SpringClassRule springClassRule = new SpringClassRule();
-
-    @Rule
-    public final SpringMethodRule springMethodRule = new SpringMethodRule();
 
     @Autowired
     private ObjectMapper objectMapper;
@@ -58,46 +46,40 @@ public class RecordPatchErrorTests {
     @Autowired
     private WebApplicationContext wac;
 
-    @Parameters
-    public static Object[] getParams() {
-        return new Object[]{true, false};
+    static Stream<Arguments> getParams() {
+        return Stream.of(Arguments.of(true), Arguments.of(false));
     }
 
-    private final String nonExistentNSEndpoint;
-    private final String nonExistentRecordEndpoint;
-
-    public RecordPatchErrorTests(boolean useSet) {
-        if (useSet) {
-            nonExistentNSEndpoint = ASTestUtils.buildEndpointV1("kvs", "fakeNS", "demo", "1");
-            nonExistentRecordEndpoint = ASTestUtils.buildEndpointV1("kvs", "test", "demo",
-                    "thisisnotarealkeyforarecord");
-        } else {
-            nonExistentNSEndpoint = ASTestUtils.buildEndpointV1("kvs", "fakeNS", "1");
-            nonExistentRecordEndpoint = ASTestUtils.buildEndpointV1("kvs", "test", "thisisnotarealkeyforarecord");
-        }
+    private static String nonExistentNSEndpoint(boolean useSet) {
+        return useSet ? ASTestUtils.buildEndpointV1("kvs", "fakeNS", "demo", "1") : ASTestUtils.buildEndpointV1("kvs", "fakeNS", "1");
     }
 
-    @Before
+    private static String nonExistentRecordEndpoint(boolean useSet) {
+        return useSet ? ASTestUtils.buildEndpointV1("kvs", "test", "demo", "thisisnotarealkeyforarecord") : ASTestUtils.buildEndpointV1("kvs", "test", "thisisnotarealkeyforarecord");
+    }
+
+    @BeforeEach
     public void setup() {
         mockMVC = MockMvcBuilders.webAppContextSetup(wac).build();
     }
 
-    @Test
-    public void PatchRecordToInvalidNamespace() throws Exception {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void PatchRecordToInvalidNamespace(boolean useSet) throws Exception {
         Map<String, Object> binMap = new HashMap<>();
         binMap.put("integer", 12345);
 
-        mockMVC.perform(patch(nonExistentNSEndpoint).contentType(MediaType.APPLICATION_JSON)
+        mockMVC.perform(patch(nonExistentNSEndpoint(useSet)).contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(binMap))).andExpect(status().isNotFound());
     }
 
-    @Test
-    public void PatchRecordWhichDoesNotExist() throws Exception {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void PatchRecordWhichDoesNotExist(boolean useSet) throws Exception {
         Map<String, Object> binMap = new HashMap<>();
-
         binMap.put("string", "Aerospike");
 
-        mockMVC.perform(patch(nonExistentRecordEndpoint).contentType(MediaType.APPLICATION_JSON)
+        mockMVC.perform(patch(nonExistentRecordEndpoint(useSet)).contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(binMap))).andExpect(status().isNotFound());
     }
 

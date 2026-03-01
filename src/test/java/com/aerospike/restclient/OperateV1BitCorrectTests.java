@@ -20,31 +20,25 @@ import com.aerospike.client.AerospikeClient;
 import com.aerospike.client.Bin;
 import com.aerospike.client.Key;
 import com.aerospike.restclient.util.AerospikeOperation;
-import org.junit.*;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.junit4.rules.SpringClassRule;
-import org.springframework.test.context.junit4.rules.SpringMethodRule;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
 import java.util.*;
+import java.util.stream.Stream;
 
 import static com.aerospike.restclient.util.AerospikeAPIConstants.OPERATION_FIELD;
 import static com.aerospike.restclient.util.AerospikeAPIConstants.OPERATION_VALUES_FIELD;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 
-@RunWith(Parameterized.class)
 @SpringBootTest
 public class OperateV1BitCorrectTests {
-
-    @ClassRule
-    public static final SpringClassRule springClassRule = new SpringClassRule();
-
-    @Rule
-    public final SpringMethodRule springMethodRule = new SpringMethodRule();
 
     private MockMvc mockMVC;
 
@@ -54,48 +48,38 @@ public class OperateV1BitCorrectTests {
     @Autowired
     private WebApplicationContext wac;
 
-    byte[] byteArray = new byte[]{12, 5, 110, 47};
-    private final Key testKey;
-    private final String testEndpoint;
+    static final byte[] byteArray = new byte[]{12, 5, 110, 47};
 
-    @Before
+    static Stream<Arguments> getParams() {
+        return Stream.of(
+                Arguments.of(new JSONOperationV1Performer(), true),
+                Arguments.of(new MsgPackOperationV1Performer(), true),
+                Arguments.of(new JSONOperationV1Performer(), false),
+                Arguments.of(new MsgPackOperationV1Performer(), false)
+        );
+    }
+
+    private static Key keyFor(boolean useSet) {
+        return useSet ? new Key("test", "junit", "bitop") : new Key("test", null, "bitop");
+    }
+
+    private static String endpointFor(boolean useSet) {
+        return useSet ? ASTestUtils.buildEndpointV1("operate", "test", "junit", "bitop") : ASTestUtils.buildEndpointV1("operate", "test", "bitop");
+    }
+
+    @BeforeEach
     public void setup() {
         mockMVC = MockMvcBuilders.webAppContextSetup(wac).build();
-        Bin bitBin = new Bin("bit", byteArray);
-        client.put(null, testKey, bitBin);
     }
 
-    @After
-    public void clean() {
-        client.delete(null, testKey);
-    }
-
-    private final OperationV1Performer opPerformer;
-
-    @Parameterized.Parameters
-    public static Object[][] getParams() {
-        return new Object[][]{
-                {new JSONOperationV1Performer(), true},
-                {new MsgPackOperationV1Performer(), true},
-                {new JSONOperationV1Performer(), false},
-                {new MsgPackOperationV1Performer(), false}
-        };
-    }
-
-    /* Set up the correct msgpack/json performer for this set of runs. Also decided whether to use the endpoint with a set or without */
-    public OperateV1BitCorrectTests(OperationV1Performer performer, boolean useSet) {
-        this.opPerformer = performer;
-        if (useSet) {
-            testKey = new Key("test", "junit", "bitop");
-            testEndpoint = ASTestUtils.buildEndpointV1("operate", "test", "junit", "bitop");
-        } else {
-            testKey = new Key("test", null, "bitop");
-            testEndpoint = ASTestUtils.buildEndpointV1("operate", "test", "bitop");
-        }
-    }
-
-    @Test
-    public void testBitResize() {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testBitResize(OperationV1Performer opPerformer, boolean useSet) {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+            Bin bitBin = new Bin("bit", byteArray);
+            client.put(null, testKey, bitBin);
         List<Map<String, Object>> opList = new ArrayList<>();
         Map<String, Object> opMap = new HashMap<>();
         Map<String, Object> opValues = new HashMap<>();
@@ -110,11 +94,20 @@ public class OperateV1BitCorrectTests {
 
         byte[] realByteArray = (byte[]) client.get(null, testKey).bins.get("bit");
 
-        Assert.assertArrayEquals(new byte[]{12, 5, 110, 47, 0, 0, 0, 0}, realByteArray);
+        assertArrayEquals(new byte[]{12, 5, 110, 47, 0, 0, 0, 0}, realByteArray);
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
-    @Test
-    public void testBitInsert() {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testBitInsert(OperationV1Performer opPerformer, boolean useSet) {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+            Bin bitBin = new Bin("bit", byteArray);
+            client.put(null, testKey, bitBin);
         List<Map<String, Object>> opList = new ArrayList<>();
         Map<String, Object> opMap = new HashMap<>();
         Map<String, Object> opValues = new HashMap<>();
@@ -130,11 +123,20 @@ public class OperateV1BitCorrectTests {
 
         byte[] realByteArray = (byte[]) client.get(null, testKey).bins.get("bit");
 
-        Assert.assertArrayEquals(new byte[]{12, 11, 5, 110, 47}, realByteArray);
+        org.junit.jupiter.api.Assertions.assertArrayEquals(new byte[]{12, 11, 5, 110, 47}, realByteArray);
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
-    @Test
-    public void testBitRemove() {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testBitRemove(OperationV1Performer opPerformer, boolean useSet) {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+            Bin bitBin = new Bin("bit", byteArray);
+            client.put(null, testKey, bitBin);
         List<Map<String, Object>> opList = new ArrayList<>();
         Map<String, Object> opMap = new HashMap<>();
         Map<String, Object> opValues = new HashMap<>();
@@ -149,11 +151,20 @@ public class OperateV1BitCorrectTests {
 
         byte[] realByteArray = (byte[]) client.get(null, testKey).bins.get("bit");
 
-        Assert.assertArrayEquals(new byte[]{12, 47}, realByteArray);
+        org.junit.jupiter.api.Assertions.assertArrayEquals(new byte[]{12, 47}, realByteArray);
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
-    @Test
-    public void testBitSet() {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testBitSet(OperationV1Performer opPerformer, boolean useSet) {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+            Bin bitBin = new Bin("bit", byteArray);
+            client.put(null, testKey, bitBin);
         List<Map<String, Object>> opList = new ArrayList<>();
         Map<String, Object> opMap = new HashMap<>();
         Map<String, Object> opValues = new HashMap<>();
@@ -170,11 +181,20 @@ public class OperateV1BitCorrectTests {
 
         byte[] realByteArray = (byte[]) client.get(null, testKey).bins.get("bit");
 
-        Assert.assertArrayEquals(new byte[]{12, 5, 126, 47}, realByteArray);
+        org.junit.jupiter.api.Assertions.assertArrayEquals(new byte[]{12, 5, 126, 47}, realByteArray);
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
-    @Test
-    public void testBitOr() {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testBitOr(OperationV1Performer opPerformer, boolean useSet) {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+            Bin bitBin = new Bin("bit", byteArray);
+            client.put(null, testKey, bitBin);
         List<Map<String, Object>> opList = new ArrayList<>();
         Map<String, Object> opMap = new HashMap<>();
         Map<String, Object> opValues = new HashMap<>();
@@ -191,11 +211,20 @@ public class OperateV1BitCorrectTests {
 
         byte[] realByteArray = (byte[]) client.get(null, testKey).bins.get("bit");
 
-        Assert.assertArrayEquals(new byte[]{12, 5, 127, 47}, realByteArray);
+        org.junit.jupiter.api.Assertions.assertArrayEquals(new byte[]{12, 5, 127, 47}, realByteArray);
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
-    @Test
-    public void testBitXor() {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testBitXor(OperationV1Performer opPerformer, boolean useSet) {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+            Bin bitBin = new Bin("bit", byteArray);
+            client.put(null, testKey, bitBin);
         List<Map<String, Object>> opList = new ArrayList<>();
         Map<String, Object> opMap = new HashMap<>();
         Map<String, Object> opValues = new HashMap<>();
@@ -212,11 +241,20 @@ public class OperateV1BitCorrectTests {
 
         byte[] realByteArray = (byte[]) client.get(null, testKey).bins.get("bit");
 
-        Assert.assertArrayEquals(new byte[]{12, 5, 87, 47}, realByteArray);
+        org.junit.jupiter.api.Assertions.assertArrayEquals(new byte[]{12, 5, 87, 47}, realByteArray);
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
-    @Test
-    public void testBitAnd() {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testBitAnd(OperationV1Performer opPerformer, boolean useSet) {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+            Bin bitBin = new Bin("bit", byteArray);
+            client.put(null, testKey, bitBin);
         List<Map<String, Object>> opList = new ArrayList<>();
         Map<String, Object> opMap = new HashMap<>();
         Map<String, Object> opValues = new HashMap<>();
@@ -233,11 +271,20 @@ public class OperateV1BitCorrectTests {
 
         byte[] realByteArray = (byte[]) client.get(null, testKey).bins.get("bit");
 
-        Assert.assertArrayEquals(new byte[]{12, 5, 40, 47}, realByteArray);
+        org.junit.jupiter.api.Assertions.assertArrayEquals(new byte[]{12, 5, 40, 47}, realByteArray);
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
-    @Test
-    public void testBitNot() {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testBitNot(OperationV1Performer opPerformer, boolean useSet) {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+            Bin bitBin = new Bin("bit", byteArray);
+            client.put(null, testKey, bitBin);
         List<Map<String, Object>> opList = new ArrayList<>();
         Map<String, Object> opMap = new HashMap<>();
         Map<String, Object> opValues = new HashMap<>();
@@ -252,11 +299,20 @@ public class OperateV1BitCorrectTests {
 
         byte[] realByteArray = (byte[]) client.get(null, testKey).bins.get("bit");
 
-        Assert.assertArrayEquals(new byte[]{12, 5, -111, -48}, realByteArray);
+        org.junit.jupiter.api.Assertions.assertArrayEquals(new byte[]{12, 5, -111, -48}, realByteArray);
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
-    @Test
-    public void testBitLshift() {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testBitLshift(OperationV1Performer opPerformer, boolean useSet) {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+            Bin bitBin = new Bin("bit", byteArray);
+            client.put(null, testKey, bitBin);
         List<Map<String, Object>> opList = new ArrayList<>();
         Map<String, Object> opMap = new HashMap<>();
         Map<String, Object> opValues = new HashMap<>();
@@ -272,11 +328,20 @@ public class OperateV1BitCorrectTests {
 
         byte[] realByteArray = (byte[]) client.get(null, testKey).bins.get("bit");
 
-        Assert.assertArrayEquals(new byte[]{12, 5, 110, 120}, realByteArray);
+        org.junit.jupiter.api.Assertions.assertArrayEquals(new byte[]{12, 5, 110, 120}, realByteArray);
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
-    @Test
-    public void testBitRshift() {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testBitRshift(OperationV1Performer opPerformer, boolean useSet) {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+            Bin bitBin = new Bin("bit", byteArray);
+            client.put(null, testKey, bitBin);
         List<Map<String, Object>> opList = new ArrayList<>();
         Map<String, Object> opMap = new HashMap<>();
         Map<String, Object> opValues = new HashMap<>();
@@ -292,11 +357,20 @@ public class OperateV1BitCorrectTests {
 
         byte[] realByteArray = (byte[]) client.get(null, testKey).bins.get("bit");
 
-        Assert.assertArrayEquals(new byte[]{12, 5, 110, 5}, realByteArray);
+        org.junit.jupiter.api.Assertions.assertArrayEquals(new byte[]{12, 5, 110, 5}, realByteArray);
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
-    @Test
-    public void testBitAdd() {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testBitAdd(OperationV1Performer opPerformer, boolean useSet) {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+            Bin bitBin = new Bin("bit", byteArray);
+            client.put(null, testKey, bitBin);
         List<Map<String, Object>> opList = new ArrayList<>();
         Map<String, Object> opMap = new HashMap<>();
         Map<String, Object> opValues = new HashMap<>();
@@ -312,11 +386,20 @@ public class OperateV1BitCorrectTests {
 
         byte[] realByteArray = (byte[]) client.get(null, testKey).bins.get("bit");
 
-        Assert.assertArrayEquals(new byte[]{12, 5, 110, 50}, realByteArray);
+        org.junit.jupiter.api.Assertions.assertArrayEquals(new byte[]{12, 5, 110, 50}, realByteArray);
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
-    @Test
-    public void testBitSubtract() {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testBitSubtract(OperationV1Performer opPerformer, boolean useSet) {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+            Bin bitBin = new Bin("bit", byteArray);
+            client.put(null, testKey, bitBin);
         List<Map<String, Object>> opList = new ArrayList<>();
         Map<String, Object> opMap = new HashMap<>();
         Map<String, Object> opValues = new HashMap<>();
@@ -332,11 +415,20 @@ public class OperateV1BitCorrectTests {
 
         byte[] realByteArray = (byte[]) client.get(null, testKey).bins.get("bit");
 
-        Assert.assertArrayEquals(new byte[]{12, 5, 110, 44}, realByteArray);
+        org.junit.jupiter.api.Assertions.assertArrayEquals(new byte[]{12, 5, 110, 44}, realByteArray);
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
-    @Test
-    public void testBitSetInt() {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testBitSetInt(OperationV1Performer opPerformer, boolean useSet) {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+            Bin bitBin = new Bin("bit", byteArray);
+            client.put(null, testKey, bitBin);
         List<Map<String, Object>> opList = new ArrayList<>();
         Map<String, Object> opMap = new HashMap<>();
         Map<String, Object> opValues = new HashMap<>();
@@ -352,12 +444,21 @@ public class OperateV1BitCorrectTests {
 
         byte[] realByteArray = (byte[]) client.get(null, testKey).bins.get("bit");
 
-        Assert.assertArrayEquals(new byte[]{12, 5, 110, 3}, realByteArray);
+        org.junit.jupiter.api.Assertions.assertArrayEquals(new byte[]{12, 5, 110, 3}, realByteArray);
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
-    @Test
+    @ParameterizedTest
+    @MethodSource("getParams")
     @SuppressWarnings("unchecked")
-    public void testBitGet() {
+    public void testBitGet(OperationV1Performer opPerformer, boolean useSet) {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+            Bin bitBin = new Bin("bit", byteArray);
+            client.put(null, testKey, bitBin);
         List<Map<String, Object>> opList = new ArrayList<>();
         Map<String, Object> opMap = new HashMap<>();
         Map<String, Object> opValues = new HashMap<>();
@@ -376,12 +477,21 @@ public class OperateV1BitCorrectTests {
             expected = (byte[]) ((Map<String, Object>) res.get("bins")).get("bit");
         }
 
-        Assert.assertArrayEquals(new byte[]{47}, expected);
+        org.junit.jupiter.api.Assertions.assertArrayEquals(new byte[]{47}, expected);
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
-    @Test
+    @ParameterizedTest
+    @MethodSource("getParams")
     @SuppressWarnings("unchecked")
-    public void testBitCount() {
+    public void testBitCount(OperationV1Performer opPerformer, boolean useSet) {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+            Bin bitBin = new Bin("bit", byteArray);
+            client.put(null, testKey, bitBin);
         List<Map<String, Object>> opList = new ArrayList<>();
         Map<String, Object> opMap = new HashMap<>();
         Map<String, Object> opValues = new HashMap<>();
@@ -395,12 +505,21 @@ public class OperateV1BitCorrectTests {
         Map<String, Object> res = opPerformer.performOperationsAndReturn(mockMVC, testEndpoint, opList);
         int expected = ((Map<String, Integer>) res.get("bins")).get("bit");
 
-        Assert.assertEquals(3, expected);
+        org.junit.jupiter.api.Assertions.assertEquals(3, expected);
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
-    @Test
+    @ParameterizedTest
+    @MethodSource("getParams")
     @SuppressWarnings("unchecked")
-    public void testBitLscan() {
+    public void testBitLscan(OperationV1Performer opPerformer, boolean useSet) {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+            Bin bitBin = new Bin("bit", byteArray);
+            client.put(null, testKey, bitBin);
         List<Map<String, Object>> opList = new ArrayList<>();
         Map<String, Object> opMap = new HashMap<>();
         Map<String, Object> opValues = new HashMap<>();
@@ -415,12 +534,21 @@ public class OperateV1BitCorrectTests {
         Map<String, Object> res = opPerformer.performOperationsAndReturn(mockMVC, testEndpoint, opList);
         int expected = ((Map<String, Integer>) res.get("bins")).get("bit");
 
-        Assert.assertEquals(1, expected);
+        org.junit.jupiter.api.Assertions.assertEquals(1, expected);
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
-    @Test
+    @ParameterizedTest
+    @MethodSource("getParams")
     @SuppressWarnings("unchecked")
-    public void testBitRscan() {
+    public void testBitRscan(OperationV1Performer opPerformer, boolean useSet) {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+            Bin bitBin = new Bin("bit", byteArray);
+            client.put(null, testKey, bitBin);
         List<Map<String, Object>> opList = new ArrayList<>();
         Map<String, Object> opMap = new HashMap<>();
         Map<String, Object> opValues = new HashMap<>();
@@ -434,12 +562,21 @@ public class OperateV1BitCorrectTests {
         Map<String, Object> res = opPerformer.performOperationsAndReturn(mockMVC, testEndpoint, opList);
         int expected = ((Map<String, Integer>) res.get("bins")).get("bit");
 
-        Assert.assertEquals(7, expected);
+        org.junit.jupiter.api.Assertions.assertEquals(7, expected);
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
-    @Test
+    @ParameterizedTest
+    @MethodSource("getParams")
     @SuppressWarnings("unchecked")
-    public void testBitGetInt() {
+    public void testBitGetInt(OperationV1Performer opPerformer, boolean useSet) {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+            Bin bitBin = new Bin("bit", byteArray);
+            client.put(null, testKey, bitBin);
         List<Map<String, Object>> opList = new ArrayList<>();
         Map<String, Object> opMap = new HashMap<>();
         Map<String, Object> opValues = new HashMap<>();
@@ -453,7 +590,10 @@ public class OperateV1BitCorrectTests {
         Map<String, Object> res = opPerformer.performOperationsAndReturn(mockMVC, testEndpoint, opList);
         int expected = ((Map<String, Integer>) res.get("bins")).get("bit");
 
-        Assert.assertEquals(22242, expected);
+        org.junit.jupiter.api.Assertions.assertEquals(22242, expected);
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
 }

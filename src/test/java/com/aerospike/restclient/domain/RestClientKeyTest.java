@@ -23,8 +23,10 @@ import com.aerospike.restclient.util.AerospikeAPIConstants.RecordKeyType;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.util.Base64;
 import java.util.Base64.Decoder;
@@ -52,12 +54,12 @@ public class RestClientKeyTest {
         Key testKey = new Key(ns, set, "key");
         RestClientKey constructedKey = new RestClientKey(testKey);
 
-        Assert.assertEquals(testKey.namespace, constructedKey.namespace);
-        Assert.assertEquals(testKey.setName, constructedKey.setName);
-        Assert.assertEquals("key", constructedKey.userKey);
+        Assertions.assertEquals(testKey.namespace, constructedKey.namespace);
+        Assertions.assertEquals(testKey.setName, constructedKey.setName);
+        Assertions.assertEquals("key", constructedKey.userKey);
         byte[] constructedDigest = constructedKey.toKey().digest;
-        Assert.assertEquals(constructedKey.keyType, RecordKeyType.STRING);
-        Assert.assertArrayEquals(constructedDigest, testKey.digest);
+        Assertions.assertEquals(constructedKey.keyType, RecordKeyType.STRING);
+        Assertions.assertArrayEquals(constructedDigest, testKey.digest);
     }
 
     @Test
@@ -65,13 +67,13 @@ public class RestClientKeyTest {
         Key testKey = new Key(ns, set, 5L);
         RestClientKey constructedKey = new RestClientKey(testKey);
 
-        Assert.assertEquals(testKey.namespace, constructedKey.namespace);
-        Assert.assertEquals(testKey.setName, constructedKey.setName);
-        Assert.assertEquals(5L, constructedKey.userKey);
-        Assert.assertEquals(constructedKey.keyType, RecordKeyType.INTEGER);
+        Assertions.assertEquals(testKey.namespace, constructedKey.namespace);
+        Assertions.assertEquals(testKey.setName, constructedKey.setName);
+        Assertions.assertEquals(5L, constructedKey.userKey);
+        Assertions.assertEquals(constructedKey.keyType, RecordKeyType.INTEGER);
 
         byte[] constructedDigest = constructedKey.toKey().digest;
-        Assert.assertArrayEquals(constructedDigest, testKey.digest);
+        Assertions.assertArrayEquals(constructedDigest, testKey.digest);
     }
 
     @Test
@@ -80,13 +82,13 @@ public class RestClientKeyTest {
         Key testKey = new Key(ns, set, testBytes);
         RestClientKey constructedKey = new RestClientKey(testKey);
 
-        Assert.assertEquals(testKey.namespace, constructedKey.namespace);
-        Assert.assertEquals(testKey.setName, constructedKey.setName);
-        Assert.assertEquals(constructedKey.keyType, RecordKeyType.BYTES);
+        Assertions.assertEquals(testKey.namespace, constructedKey.namespace);
+        Assertions.assertEquals(testKey.setName, constructedKey.setName);
+        Assertions.assertEquals(constructedKey.keyType, RecordKeyType.BYTES);
 
-        Assert.assertArrayEquals(testBytes, decoder.decode((String) constructedKey.userKey));
+        Assertions.assertArrayEquals(testBytes, decoder.decode((String) constructedKey.userKey));
         byte[] constructedDigest = constructedKey.toKey().digest;
-        Assert.assertArrayEquals(constructedDigest, testKey.digest);
+        Assertions.assertArrayEquals(constructedDigest, testKey.digest);
     }
 
     @Test
@@ -95,10 +97,10 @@ public class RestClientKeyTest {
         Key testKey = new Key(ns, testBytes, null, null);
         RestClientKey constructedKey = new RestClientKey(testKey);
 
-        Assert.assertEquals(testKey.namespace, constructedKey.namespace);
+        Assertions.assertEquals(testKey.namespace, constructedKey.namespace);
 
         byte[] constructedDigest = constructedKey.toKey().digest;
-        Assert.assertArrayEquals(constructedDigest, testKey.digest);
+        Assertions.assertArrayEquals(constructedDigest, testKey.digest);
     }
 
     @Test
@@ -110,7 +112,7 @@ public class RestClientKeyTest {
         rcKey.namespace = ns;
         rcKey.userKey = "test";
 
-        Assert.assertTrue(ASTestUtils.compareKeys(expectedKey, rcKey.toKey()));
+        Assertions.assertTrue(ASTestUtils.compareKeys(expectedKey, rcKey.toKey()));
     }
 
     @Test
@@ -122,7 +124,7 @@ public class RestClientKeyTest {
         rcKey.namespace = ns;
         rcKey.userKey = 5;
 
-        Assert.assertTrue(ASTestUtils.compareKeys(expectedKey, rcKey.toKey()));
+        Assertions.assertTrue(ASTestUtils.compareKeys(expectedKey, rcKey.toKey()));
     }
 
     @Test
@@ -135,7 +137,7 @@ public class RestClientKeyTest {
         rcKey.namespace = ns;
         rcKey.userKey = encoder.encodeToString(keyBytes);
 
-        Assert.assertTrue(ASTestUtils.compareKeys(expectedKey, rcKey.toKey()));
+        Assertions.assertTrue(ASTestUtils.compareKeys(expectedKey, rcKey.toKey()));
     }
 
     @Test
@@ -147,7 +149,7 @@ public class RestClientKeyTest {
         rcKey.namespace = ns;
         rcKey.userKey = encoder.encodeToString(testBytes);
 
-        Assert.assertTrue(ASTestUtils.compareKeys(expectedKey, rcKey.toKey()));
+        Assertions.assertTrue(ASTestUtils.compareKeys(expectedKey, rcKey.toKey()));
     }
 
     @Test
@@ -156,10 +158,10 @@ public class RestClientKeyTest {
         Key testKey = new Key(ns, testBytes, null, null);
         RestClientKey constructedKey = new RestClientKey(testKey);
 
-        Assert.assertEquals(testKey.namespace, constructedKey.namespace);
+        Assertions.assertEquals(testKey.namespace, constructedKey.namespace);
 
         byte[] constructedDigest = constructedKey.toKey().digest;
-        Assert.assertArrayEquals(constructedDigest, testKey.digest);
+        Assertions.assertArrayEquals(constructedDigest, testKey.digest);
     }
 
     @Test
@@ -167,7 +169,7 @@ public class RestClientKeyTest {
         Key expectedKey = new Key(ns, set, "test");
         RestClientKey rcKey = new RestClientKey(expectedKey);
 
-        Assert.assertTrue(ASTestUtils.compareKeys(expectedKey, rcKey.toKey()));
+        Assertions.assertTrue(ASTestUtils.compareKeys(expectedKey, rcKey.toKey()));
     }
 
     @Test
@@ -175,7 +177,7 @@ public class RestClientKeyTest {
         Key expectedKey = new Key(ns, set, 5L);
         RestClientKey rcKey = new RestClientKey(expectedKey);
 
-        Assert.assertTrue(ASTestUtils.compareKeys(expectedKey, rcKey.toKey()));
+        Assertions.assertTrue(ASTestUtils.compareKeys(expectedKey, rcKey.toKey()));
     }
 
     @Test
@@ -184,7 +186,7 @@ public class RestClientKeyTest {
         Key expectedKey = new Key(ns, set, keyBytes);
         RestClientKey rcKey = new RestClientKey(expectedKey);
 
-        Assert.assertTrue(ASTestUtils.compareKeys(expectedKey, rcKey.toKey()));
+        Assertions.assertTrue(ASTestUtils.compareKeys(expectedKey, rcKey.toKey()));
     }
 
     @Test
@@ -193,7 +195,7 @@ public class RestClientKeyTest {
         Key expectedKey = new Key(ns, testBytes, null, null);
         RestClientKey rcKey = new RestClientKey(expectedKey);
 
-        Assert.assertTrue(ASTestUtils.compareKeys(expectedKey, rcKey.toKey()));
+        Assertions.assertTrue(ASTestUtils.compareKeys(expectedKey, rcKey.toKey()));
     }
 
     @Test
@@ -201,10 +203,10 @@ public class RestClientKeyTest {
         String jsonKey = getJsonRCKey(ns, set, "key", RecordKeyType.STRING);
         RestClientKey rcKey = mapper.readValue(jsonKey, rcKeyType);
 
-        Assert.assertEquals(rcKey.namespace, ns);
-        Assert.assertEquals(rcKey.setName, set);
-        Assert.assertEquals(rcKey.userKey, "key");
-        Assert.assertEquals(rcKey.keyType, RecordKeyType.STRING);
+        Assertions.assertEquals(rcKey.namespace, ns);
+        Assertions.assertEquals(rcKey.setName, set);
+        Assertions.assertEquals(rcKey.userKey, "key");
+        Assertions.assertEquals(rcKey.keyType, RecordKeyType.STRING);
     }
 
     @Test
@@ -212,10 +214,10 @@ public class RestClientKeyTest {
         String jsonKey = getJsonRCKey(ns, set, 5L, RecordKeyType.INTEGER);
         RestClientKey rcKey = mapper.readValue(jsonKey, rcKeyType);
 
-        Assert.assertEquals(rcKey.namespace, ns);
-        Assert.assertEquals(rcKey.setName, set);
-        Assert.assertEquals(rcKey.userKey, 5);
-        Assert.assertEquals(rcKey.keyType, RecordKeyType.INTEGER);
+        Assertions.assertEquals(rcKey.namespace, ns);
+        Assertions.assertEquals(rcKey.setName, set);
+        Assertions.assertEquals(rcKey.userKey, 5);
+        Assertions.assertEquals(rcKey.keyType, RecordKeyType.INTEGER);
     }
 
     @Test
@@ -225,10 +227,10 @@ public class RestClientKeyTest {
         String jsonKey = getJsonRCKey(ns, set, strBytes, RecordKeyType.DIGEST);
         RestClientKey rcKey = mapper.readValue(jsonKey, rcKeyType);
 
-        Assert.assertEquals(rcKey.namespace, ns);
-        Assert.assertEquals(rcKey.setName, set);
-        Assert.assertEquals(rcKey.userKey, strBytes);
-        Assert.assertEquals(rcKey.keyType, RecordKeyType.DIGEST);
+        Assertions.assertEquals(rcKey.namespace, ns);
+        Assertions.assertEquals(rcKey.setName, set);
+        Assertions.assertEquals(rcKey.userKey, strBytes);
+        Assertions.assertEquals(rcKey.keyType, RecordKeyType.DIGEST);
     }
 
     @Test
@@ -239,10 +241,10 @@ public class RestClientKeyTest {
         String jsonKey = getJsonRCKey(ns, set, strBytes, RecordKeyType.BYTES);
         RestClientKey rcKey = mapper.readValue(jsonKey, rcKeyType);
 
-        Assert.assertEquals(rcKey.namespace, ns);
-        Assert.assertEquals(rcKey.setName, set);
-        Assert.assertEquals(rcKey.userKey, strBytes);
-        Assert.assertEquals(rcKey.keyType, RecordKeyType.BYTES);
+        Assertions.assertEquals(rcKey.namespace, ns);
+        Assertions.assertEquals(rcKey.setName, set);
+        Assertions.assertEquals(rcKey.userKey, strBytes);
+        Assertions.assertEquals(rcKey.keyType, RecordKeyType.BYTES);
     }
 
     private String getJsonRCKey(String namespace, String set, Object userKey,

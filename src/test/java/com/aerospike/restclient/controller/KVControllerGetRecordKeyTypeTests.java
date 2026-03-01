@@ -21,76 +21,66 @@ import com.aerospike.restclient.controllers.KeyValueController;
 import com.aerospike.restclient.service.AerospikeRecordService;
 import com.aerospike.restclient.util.AerospikeAPIConstants;
 import com.aerospike.restclient.util.AerospikeAPIConstants.RecordKeyType;
-import org.junit.Before;
-import org.junit.ClassRule;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameters;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.test.context.junit4.rules.SpringClassRule;
-import org.springframework.test.context.junit4.rules.SpringMethodRule;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 
 import java.util.Collections;
+import java.util.stream.Stream;
 
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.verify;
 
-@RunWith(Parameterized.class)
 @SpringBootTest
 public class KVControllerGetRecordKeyTypeTests {
-
-    @ClassRule
-    public static final SpringClassRule springClassRule = new SpringClassRule();
-    @Rule
-    public final SpringMethodRule springMethodRule = new SpringMethodRule();
 
     @Autowired
     KeyValueController controller;
     @MockitoBean
     AerospikeRecordService recordService;
 
-    private final String ns = "test";
-    private final String set = "set";
-    private final String key = "key";
+    private static final String ns = "test";
+    private static final String set = "set";
+    private static final String key = "key";
 
-    private MultiValueMap<String, String> queryParams;
-    private final RecordKeyType expectedKeyType;
-
-    @Parameters
-    public static Object[] keyType() {
-        return new Object[]{
-                RecordKeyType.STRING, RecordKeyType.BYTES, RecordKeyType.DIGEST, RecordKeyType.INTEGER, null
-        };
+    static Stream<Arguments> keyType() {
+        return Stream.of(
+                Arguments.of(RecordKeyType.STRING),
+                Arguments.of(RecordKeyType.BYTES),
+                Arguments.of(RecordKeyType.DIGEST),
+                Arguments.of(RecordKeyType.INTEGER),
+                Arguments.of((RecordKeyType) null)
+        );
     }
 
-    public KVControllerGetRecordKeyTypeTests(RecordKeyType keyType) {
-        this.expectedKeyType = keyType;
-    }
-
-    @Before
-    public void setup() {
-        queryParams = new LinkedMultiValueMap<>();
+    private static MultiValueMap<String, String> queryParamsFor(RecordKeyType expectedKeyType) {
+        MultiValueMap<String, String> queryParams = new LinkedMultiValueMap<>();
         if (expectedKeyType != null) {
             queryParams.put(AerospikeAPIConstants.KEY_TYPE, Collections.singletonList(expectedKeyType.toString()));
         }
+        return queryParams;
     }
 
-    @Test
-    public void testKeyTypeForNSSetKey() {
+    @ParameterizedTest
+    @MethodSource("keyType")
+    public void testKeyTypeForNSSetKey(RecordKeyType expectedKeyType) {
+        MultiValueMap<String, String> queryParams = queryParamsFor(expectedKeyType);
         controller.getRecordNamespaceSetKey(ns, set, key, queryParams, null);
         verify(recordService, Mockito.only()).fetchRecord(isNull(), any(String.class), any(String.class),
                 any(String.class), any(String[].class), eq(expectedKeyType), isA(Policy.class));
     }
 
-    @Test
-    public void testKeyTypeForNSKey() {
+    @ParameterizedTest
+    @MethodSource("keyType")
+    public void testKeyTypeForNSKey(RecordKeyType expectedKeyType) {
+        MultiValueMap<String, String> queryParams = queryParamsFor(expectedKeyType);
         controller.getRecordNamespaceKey(ns, key, queryParams, null);
         verify(recordService, Mockito.only()).fetchRecord(isNull(), any(String.class), isNull(), any(String.class),
                 any(String[].class), eq(expectedKeyType), isA(Policy.class));

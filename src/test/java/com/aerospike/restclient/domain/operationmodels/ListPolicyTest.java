@@ -22,47 +22,46 @@ import com.aerospike.restclient.ASTestMapper;
 import com.aerospike.restclient.ASTestUtils;
 import com.aerospike.restclient.config.JSONMessageConverter;
 import com.aerospike.restclient.config.MsgPackConverter;
-import org.junit.Assert;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 
-@RunWith(Parameterized.class)
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+
 public class ListPolicyTest {
-    ASTestMapper mapper;
 
-    @Parameterized.Parameters
-    public static Object[] getParams() {
-        return new Object[]{
-                new JsonListPolicyMapper(), new MsgPackListPolicyMapper(),
-                };
+    static Stream<Arguments> getParams() {
+        return Stream.of(
+                Arguments.of(new JsonListPolicyMapper()),
+                Arguments.of(new MsgPackListPolicyMapper())
+        );
     }
 
-    public ListPolicyTest(ASTestMapper mapper) {
-        this.mapper = mapper;
-    }
-
-    @Test
-    public void testEmptyListPolicy() throws Exception {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    void testEmptyListPolicy(ASTestMapper mapper) throws Exception {
         Map<String, Object> policyMap = new HashMap<>();
 
         ListPolicy listPolicy = (ListPolicy) mapper.bytesToObject(mapper.objectToBytes(policyMap));
 
-        Assert.assertNull(listPolicy.getOrder());
-        Assert.assertNull(listPolicy.getWriteFlags());
+        assertNull(listPolicy.getOrder());
+        assertNull(listPolicy.getWriteFlags());
 
         com.aerospike.client.cdt.ListPolicy asListPolicy = listPolicy.toListPolicy();
-        Assert.assertEquals(asListPolicy.attributes, com.aerospike.client.cdt.ListPolicy.Default.attributes);
-        Assert.assertEquals(asListPolicy.flags, com.aerospike.client.cdt.ListPolicy.Default.flags);
+        assertEquals(asListPolicy.attributes, com.aerospike.client.cdt.ListPolicy.Default.attributes);
+        assertEquals(asListPolicy.flags, com.aerospike.client.cdt.ListPolicy.Default.flags);
     }
 
-    @Test
-    public void toListPolicyWithOrderAndWriteFlags() throws Exception {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    void toListPolicyWithOrderAndWriteFlags(ASTestMapper mapper) throws Exception {
         Map<String, Object> policyMap = new HashMap<>();
         policyMap.put("order", "UNORDERED");
         policyMap.put("writeFlags", new String[]{"ADD_UNIQUE", "NO_FAIL"});
@@ -72,26 +71,27 @@ public class ListPolicyTest {
 
         ListPolicy listPolicy = (ListPolicy) mapper.bytesToObject(mapper.objectToBytes(policyMap));
 
-        Assert.assertEquals(listPolicy.getOrder(), ListOrder.UNORDERED);
+        assertEquals(listPolicy.getOrder(), ListOrder.UNORDERED);
         ASTestUtils.compareCollection(expectedWriteFlags, listPolicy.getWriteFlags());
 
         com.aerospike.client.cdt.ListPolicy asListPolicy = listPolicy.toListPolicy();
-        Assert.assertEquals(asListPolicy.attributes, ListOrder.UNORDERED.attributes);
-        Assert.assertEquals(asListPolicy.flags, ListWriteFlags.ADD_UNIQUE | ListWriteFlags.NO_FAIL);
+        assertEquals(asListPolicy.attributes, ListOrder.UNORDERED.attributes);
+        assertEquals(asListPolicy.flags, ListWriteFlags.ADD_UNIQUE | ListWriteFlags.NO_FAIL);
     }
 
-    @Test
-    public void toListPolicyWithNoWriteFlags() throws Exception {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    void toListPolicyWithNoWriteFlags(ASTestMapper mapper) throws Exception {
         Map<String, Object> policyMap = new HashMap<>();
         policyMap.put("order", "UNORDERED");
 
         ListPolicy listPolicy = (ListPolicy) mapper.bytesToObject(mapper.objectToBytes(policyMap));
 
-        Assert.assertEquals(listPolicy.getOrder(), ListOrder.UNORDERED);
+        assertEquals(listPolicy.getOrder(), ListOrder.UNORDERED);
 
         com.aerospike.client.cdt.ListPolicy asListPolicy = listPolicy.toListPolicy();
-        Assert.assertEquals(asListPolicy.attributes, ListOrder.UNORDERED.attributes);
-        Assert.assertEquals(asListPolicy.flags, 0);
+        assertEquals(asListPolicy.attributes, ListOrder.UNORDERED.attributes);
+        assertEquals(asListPolicy.flags, 0);
     }
 }
 

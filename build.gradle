@@ -64,6 +64,7 @@ jar {
     archiveBaseName = "${jarBaseName}"
 }
 test {
+    useJUnitPlatform()
     testLogging {
         events "passed", "skipped", "failed"
     }
@@ -125,8 +126,6 @@ dependencies {
     implementation('io.github.resilience4j:resilience4j-micrometer:2.2.0')
     implementation('io.micrometer:micrometer-registry-prometheus')
     testImplementation("org.springframework.boot:spring-boot-starter-test:${springBootVersion}")
-    testImplementation("junit:junit:4.13.2")
-    testRuntimeOnly("org.junit.vintage:junit-vintage-engine")
 }
 
 compileJava {

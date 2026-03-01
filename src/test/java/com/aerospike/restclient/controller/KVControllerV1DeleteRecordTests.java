@@ -24,22 +24,20 @@ import com.aerospike.restclient.ASTestUtils.WritePolicyMatcher.WritePolicyCompar
 import com.aerospike.restclient.controllers.KeyValueController;
 import com.aerospike.restclient.service.AerospikeRecordService;
 import com.aerospike.restclient.util.AerospikeAPIConstants;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.test.context.junit4.SpringRunner;
 
 import java.util.HashMap;
 import java.util.Map;
 
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.verify;
 
-@RunWith(SpringRunner.class)
 @SpringBootTest
 public class KVControllerV1DeleteRecordTests {
 
@@ -57,7 +55,7 @@ public class KVControllerV1DeleteRecordTests {
 
     private Map<String, String> queryParams;
 
-    @Before
+    @BeforeEach
     /* Initialize the query params argument */ public void setup() {
         queryParams = new HashMap<>();
     }
@@ -99,19 +97,19 @@ public class KVControllerV1DeleteRecordTests {
                 argThat(matcher));
     }
 
-    @Test(expected = AerospikeException.class)
+    @Test
     public void testErrorNSSetKey() {
         Mockito.doThrow(expectedException)
                 .when(recordService)
                 .deleteRecord(isNull(), any(String.class), any(String.class), any(String.class), any(), any());
-        controller.deleteRecordNamespaceSetKey(ns, set, key, queryParams, null);
+        assertThrows(AerospikeException.class, () -> controller.deleteRecordNamespaceSetKey(ns, set, key, queryParams, null));
     }
 
-    @Test(expected = AerospikeException.class)
+    @Test
     public void testErrorNSKey() {
         Mockito.doThrow(expectedException)
                 .when(recordService)
                 .deleteRecord(isNull(), any(String.class), isNull(), any(String.class), any(), any());
-        controller.deleteRecordNamespaceKey(ns, key, queryParams, null);
+        assertThrows(AerospikeException.class, () -> controller.deleteRecordNamespaceKey(ns, key, queryParams, null));
     }
 }

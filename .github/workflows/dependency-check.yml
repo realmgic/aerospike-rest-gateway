@@ -3,10 +3,24 @@ name: Dependency Check
 on:
   push:
     branches: [ master ]
+    paths:
+      - '**/*.gradle'
+      - '**/gradle.lockfile'
+      - '**/gradle/**'
+      - '**.gradle.kts'
   pull_request:
     branches: [ master ]
+    paths:
+      - '**/*.gradle'
+      - '**/gradle.lockfile'
+      - '**/gradle/**'
+      - '**.gradle.kts'
   schedule:
     - cron: '0 0 * * 1'
+
+concurrency:
+  group: dependency-check-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   dependency-review:
@@ -20,6 +34,8 @@ jobs:
 
   dependency-check:
     runs-on: ubuntu-latest
+    # Don't fail the workflow when NVD is unreachable or dependency-check has issues (e.g. invalid/expired NVD API key)
+    continue-on-error: true
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -38,8 +54,16 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-dependency-check-
 
-      # Optional: add NVD_API_KEY repo secret (https://nvd.nist.gov/developers/request-an-api-key) to speed up CVE updates
+      # Retry on NVD/network flakiness and H2 errors from stale cache (e.g. "old transaction still open", "database has been closed")
+      # Extra heap for NVD download/processing (avoids OutOfMemoryError in httpclient when fetching large payloads)
       - name: Run OWASP Dependency-Check
+        uses: nick-fields/retry@v3
         env:
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
-        run: ./gradlew dependencyCheckAnalyze --no-daemon
+          GRADLE_OPTS: -Xmx4g -Xms512m
+        with:
+          max_attempts: 3
+          timeout_minutes: 15
+          retry_wait_seconds: 45
+          on_retry_command: rm -rf ~/.gradle/dependency-check-data
+          command: ./gradlew dependencyCheckAnalyze --no-daemon

@@ -23,15 +23,14 @@ import com.aerospike.client.Record;
 import com.aerospike.restclient.util.AerospikeOperation;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.msgpack.jackson.dataformat.MessagePackFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.junit4.SpringRunner;
+
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
@@ -42,7 +41,6 @@ import static com.aerospike.restclient.util.AerospikeAPIConstants.OPERATION_FIEL
 import static com.aerospike.restclient.util.AerospikeAPIConstants.OPERATION_VALUES_FIELD;
 import static org.junit.jupiter.api.Assertions.assertIterableEquals;
 
-@RunWith(SpringRunner.class)
 @SpringBootTest
 public class MsgPackOperateTest {
 
@@ -66,7 +64,7 @@ public class MsgPackOperateTest {
     private final TypeReference<Map<String, Object>> binType = new TypeReference<Map<String, Object>>() {
     };
 
-    @Before
+    @BeforeEach
     public void setup() {
         objectMapper = new ObjectMapper(new MessagePackFactory());
         mockMVC = MockMvcBuilders.webAppContextSetup(wac).build();
@@ -78,7 +76,7 @@ public class MsgPackOperateTest {
         client.put(null, bytesKey, strBin, intBin);
     }
 
-    @After
+    @AfterEach
     public void clean() {
         client.delete(null, testKey);
         client.delete(null, testKey2);
@@ -102,7 +100,7 @@ public class MsgPackOperateTest {
         Map<String, Object> binsObject = objectMapper.readValue(opResult, binType);
         Map<String, Object> realBins = client.get(null, testKey).bins;
 
-        Assert.assertTrue(ASTestUtils.compareMapStringObj((Map<String, Object>) binsObject.get("bins"), realBins));
+        Assertions.assertTrue(ASTestUtils.compareMapStringObj((Map<String, Object>) binsObject.get("bins"), realBins));
     }
 
     @Test
@@ -126,7 +124,7 @@ public class MsgPackOperateTest {
 
         Map<String, Object> realBins = client.get(null, testKey).bins;
 
-        Assert.assertTrue(ASTestUtils.compareMapStringObj(expectedBins, realBins));
+        Assertions.assertTrue(ASTestUtils.compareMapStringObj(expectedBins, realBins));
     }
 
     @SuppressWarnings("unchecked")
@@ -147,7 +145,7 @@ public class MsgPackOperateTest {
         /* Only read the str bin on the get*/
         Map<String, Object> realBins = client.get(null, testKey, "str").bins;
 
-        Assert.assertTrue(ASTestUtils.compareMapStringObj((Map<String, Object>) binsObject.get("bins"), realBins));
+        Assertions.assertTrue(ASTestUtils.compareMapStringObj((Map<String, Object>) binsObject.get("bins"), realBins));
     }
 
     @Test
@@ -173,7 +171,7 @@ public class MsgPackOperateTest {
 
         Map<String, Object> realBins = client.get(null, testKey).bins;
 
-        Assert.assertTrue(ASTestUtils.compareMapStringObj(expectedBins, realBins));
+        Assertions.assertTrue(ASTestUtils.compareMapStringObj(expectedBins, realBins));
     }
 
     @Test
@@ -196,7 +194,7 @@ public class MsgPackOperateTest {
         expectedBins.put("str", "binary");
         Map<String, Object> realBins = client.get(null, testKey, "str").bins;
 
-        Assert.assertTrue(ASTestUtils.compareMapStringObj(expectedBins, realBins));
+        Assertions.assertTrue(ASTestUtils.compareMapStringObj(expectedBins, realBins));
     }
 
     @Test
@@ -220,7 +218,7 @@ public class MsgPackOperateTest {
         expectedBins.put("str", "robin");
         Map<String, Object> realBins = client.get(null, testKey, "str").bins;
 
-        Assert.assertTrue(ASTestUtils.compareMapStringObj(expectedBins, realBins));
+        Assertions.assertTrue(ASTestUtils.compareMapStringObj(expectedBins, realBins));
     }
 
     @Test
@@ -241,7 +239,7 @@ public class MsgPackOperateTest {
         ASTestUtils.performOperation(mockMVC, testEndpoint, payload);
 
         record = client.get(null, testKey);
-        Assert.assertEquals(oldGeneration + 1, record.generation);
+        Assertions.assertEquals(oldGeneration + 1, record.generation);
     }
 
     @Test
@@ -262,7 +260,7 @@ public class MsgPackOperateTest {
         ASTestUtils.performOperation(mockMVC, intEndpoint, payload);
 
         record = client.get(null, intKey);
-        Assert.assertEquals(oldGeneration + 1, record.generation);
+        Assertions.assertEquals(oldGeneration + 1, record.generation);
     }
 
     @Test
@@ -286,7 +284,7 @@ public class MsgPackOperateTest {
         ASTestUtils.performOperation(mockMVC, bytesEndpoint, payload);
 
         record = client.get(null, bytesKey);
-        Assert.assertEquals(oldGeneration + 1, record.generation);
+        Assertions.assertEquals(oldGeneration + 1, record.generation);
     }
 
     /*
@@ -312,7 +310,7 @@ public class MsgPackOperateTest {
         ASTestUtils.performOperation(mockMVC, bytesEndpoint, payload);
 
         record = client.get(null, testKey);
-        Assert.assertEquals(oldGeneration + 1, record.generation);
+        Assertions.assertEquals(oldGeneration + 1, record.generation);
     }
 
     @SuppressWarnings("unchecked")

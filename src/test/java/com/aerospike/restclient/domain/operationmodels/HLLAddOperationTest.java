@@ -16,24 +16,24 @@
  */
 package com.aerospike.restclient.domain.operationmodels;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 public class HLLAddOperationTest {
 
     @Test
     public void getIndexBitCount() {
         HLLAddOperation op = new HLLAddOperation("op", null);
-        Assert.assertNull(op.getIndexBitCount());
+        Assertions.assertNull(op.getIndexBitCount());
         op.setIndexBitCount(2);
-        Assert.assertEquals(Integer.valueOf(2), op.getIndexBitCount());
+        Assertions.assertEquals(Integer.valueOf(2), op.getIndexBitCount());
     }
 
     @Test
     public void getMinHashBitCount() {
         HLLAddOperation op = new HLLAddOperation("op", null);
-        Assert.assertNull(op.getMinHashBitCount());
+        Assertions.assertNull(op.getMinHashBitCount());
         op.setMinHashBitCount(2);
-        Assert.assertEquals(Integer.valueOf(2), op.getMinHashBitCount());
+        Assertions.assertEquals(Integer.valueOf(2), op.getMinHashBitCount());
     }
 }

@@ -29,16 +29,17 @@ import com.aerospike.restclient.util.AerospikeAPIConstants;
 import com.aerospike.restclient.util.AerospikeOperation;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.junit.*;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameters;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockHttpServletResponse;
-import org.springframework.test.context.junit4.rules.SpringClassRule;
-import org.springframework.test.context.junit4.rules.SpringMethodRule;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
@@ -46,24 +47,14 @@ import org.springframework.web.context.WebApplicationContext;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.util.*;
+import java.util.stream.Stream;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SuppressWarnings("unchecked")
-@RunWith(Parameterized.class)
 @SpringBootTest
 public class BatchCorrectTests {
-
-    private final RestBatchComparator batchComparator;
-    private final BatchHandler batchHandler;
-
-    /* Needed to run as a Spring Boot test */
-    @ClassRule
-    public static final SpringClassRule springClassRule = new SpringClassRule();
-
-    @Rule
-    public final SpringMethodRule springMethodRule = new SpringMethodRule();
 
     @Autowired
     private ObjectMapper objectMapper;
@@ -87,7 +78,7 @@ public class BatchCorrectTests {
 
     private final String endpoint = "/v1/batch";
 
-    @Before
+    @BeforeEach
     public void setup() {
         mockMVC = MockMvcBuilders.webAppContextSetup(wac).build();
         Map<String, Object> mapCDT = new HashMap<>();
@@ -117,7 +108,7 @@ public class BatchCorrectTests {
         task.waitTillComplete();
     }
 
-    @After
+    @AfterEach
     public void clean() {
         for (Key key : keys) {
             client.delete(null, key);
@@ -127,21 +118,16 @@ public class BatchCorrectTests {
         client.removeUdf(null, recordUDFPkg + ".lua");
     }
 
-    @Parameters
-    public static Object[] mappers() {
-        return new Object[][]{
-                {new RestBatchComparator(), new JSONBatchHandler()},
-                {new RestBatchComparator(), new MsgPackBatchHandler()}
-        };
+    public static Stream<Arguments> mappers() {
+        return Stream.of(
+                Arguments.of(new RestBatchComparator(), new JSONBatchHandler()),
+                Arguments.of(new RestBatchComparator(), new MsgPackBatchHandler())
+        );
     }
 
-    public BatchCorrectTests(RestBatchComparator comparator, BatchHandler handler) {
-        this.batchComparator = comparator;
-        this.batchHandler = handler;
-    }
-
-    @Test
-    public void testGetExistingRecords() throws Exception {
+    @ParameterizedTest
+    @MethodSource("mappers")
+    public void testGetExistingRecords(RestBatchComparator batchComparator, BatchHandler batchHandler) throws Exception {
         List<Map<String, Object>> batchKeys = new ArrayList<>();
         List<BatchRecord> batchRecs = new ArrayList<>();
 
@@ -156,14 +142,15 @@ public class BatchCorrectTests {
         String payLoad = objectMapper.writeValueAsString(batchKeys);
         Map<String, Object> batchResponse = batchHandler.perform(mockMVC, endpoint, payLoad);
         List<Map<String, Object>> returnedRecords = (List<Map<String, Object>>) batchResponse.get("batchRecords");
-        Assert.assertEquals(3, returnedRecords.size());
+        Assertions.assertEquals(3, returnedRecords.size());
 
         client.get(null, batchRecs.stream().map(r -> (BatchRead) r).toList());
-        Assert.assertTrue(compareRestRecordsToBatchRecords(returnedRecords, batchRecs));
+        Assertions.assertTrue(compareRestRecordsToBatchRecords(batchComparator, returnedRecords, batchRecs));
     }
 
-    @Test
-    public void testGetExistingRecordsIsBackwardsCompatible() throws Exception {
+    @ParameterizedTest
+    @MethodSource("mappers")
+    public void testGetExistingRecordsIsBackwardsCompatible(RestBatchComparator batchComparator, BatchHandler batchHandler) throws Exception {
 
         List<Map<String, Object>> batchKeys = new ArrayList<>();
         List<BatchRead> batchRecs = new ArrayList<>();
@@ -179,14 +166,15 @@ public class BatchCorrectTests {
         String payLoad = objectMapper.writeValueAsString(batchKeys);
         Map<String, Object> batchResponse = batchHandler.perform(mockMVC, endpoint, payLoad);
         List<Map<String, Object>> returnedRecords = (List<Map<String, Object>>) batchResponse.get("batchRecords");
-        Assert.assertEquals(3, returnedRecords.size());
+        Assertions.assertEquals(3, returnedRecords.size());
 
         client.get(null, batchRecs);
-        Assert.assertTrue(compareRestRecordsToBatchReads(returnedRecords, batchRecs));
+        Assertions.assertTrue(compareRestRecordsToBatchReads(batchComparator, returnedRecords, batchRecs));
     }
 
-    @Test
-    public void testBatchGetExistingRecordsBinFilter() throws Exception {
+    @ParameterizedTest
+    @MethodSource("mappers")
+    public void testBatchGetExistingRecordsBinFilter(RestBatchComparator batchComparator, BatchHandler batchHandler) throws Exception {
         List<Map<String, Object>> batchKeys = new ArrayList<>();
         List<BatchRecord> batchRecs = new ArrayList<>();
         String[] bins = new String[]{"bin1", "bin3"};
@@ -202,14 +190,15 @@ public class BatchCorrectTests {
         String payLoad = objectMapper.writeValueAsString(batchKeys);
         Map<String, Object> batchResponse = batchHandler.perform(mockMVC, endpoint, payLoad);
         List<Map<String, Object>> returnedRecords = (List<Map<String, Object>>) batchResponse.get("batchRecords");
-        Assert.assertEquals(3, returnedRecords.size());
+        Assertions.assertEquals(3, returnedRecords.size());
 
         client.get(null, batchRecs.stream().map(r -> (BatchRead) r).toList());
-        Assert.assertTrue(compareRestRecordsToBatchRecords(returnedRecords, batchRecs));
+        Assertions.assertTrue(compareRestRecordsToBatchRecords(batchComparator, returnedRecords, batchRecs));
     }
 
-    @Test
-    public void testBatchGetWithNonExistentRecord() throws Exception {
+    @ParameterizedTest
+    @MethodSource("mappers")
+    public void testBatchGetWithNonExistentRecord(RestBatchComparator batchComparator, BatchHandler batchHandler) throws Exception {
         List<Map<String, Object>> batchKeys = new ArrayList<>();
         List<BatchRecord> batchRecs = new ArrayList<>();
         batchKeys.add(keyToBatchReadObject(null, keys[0], null, null));
@@ -225,14 +214,15 @@ public class BatchCorrectTests {
         String payLoad = objectMapper.writeValueAsString(batchKeys);
         Map<String, Object> batchResponse = batchHandler.perform(mockMVC, endpoint, payLoad);
         List<Map<String, Object>> returnedRecords = (List<Map<String, Object>>) batchResponse.get("batchRecords");
-        Assert.assertEquals(4, returnedRecords.size());
+        Assertions.assertEquals(4, returnedRecords.size());
 
         client.get(null, batchRecs.stream().map(r -> (BatchRead) r).toList());
-        Assert.assertTrue(compareRestRecordsToBatchRecords(returnedRecords, batchRecs));
+        Assertions.assertTrue(compareRestRecordsToBatchRecords(batchComparator, returnedRecords, batchRecs));
     }
 
-    @Test
-    public void testGetExistingRecordsWithIntKey() throws Exception {
+    @ParameterizedTest
+    @MethodSource("mappers")
+    public void testGetExistingRecordsWithIntKey(RestBatchComparator batchComparator, BatchHandler batchHandler) throws Exception {
         List<Map<String, Object>> batchKeys = new ArrayList<>();
         List<BatchRecord> batchRecs = new ArrayList<>();
         batchKeys.add(keyToBatchReadObject(null, keys[0], null, null));
@@ -248,14 +238,15 @@ public class BatchCorrectTests {
         String payLoad = objectMapper.writeValueAsString(batchKeys);
         Map<String, Object> batchResponse = batchHandler.perform(mockMVC, endpoint, payLoad);
         List<Map<String, Object>> returnedRecords = (List<Map<String, Object>>) batchResponse.get("batchRecords");
-        Assert.assertEquals(4, returnedRecords.size());
+        Assertions.assertEquals(4, returnedRecords.size());
 
         client.get(null, batchRecs.stream().map(r -> (BatchRead) r).toList());
-        Assert.assertTrue(compareRestRecordsToBatchRecords(returnedRecords, batchRecs));
+        Assertions.assertTrue(compareRestRecordsToBatchRecords(batchComparator, returnedRecords, batchRecs));
     }
 
-    @Test
-    public void testGetExistingRecordsWithBytesKey() throws Exception {
+    @ParameterizedTest
+    @MethodSource("mappers")
+    public void testGetExistingRecordsWithBytesKey(RestBatchComparator batchComparator, BatchHandler batchHandler) throws Exception {
         List<Map<String, Object>> batchKeys = new ArrayList<>();
         List<BatchRecord> batchRecs = new ArrayList<>();
         batchKeys.add(keyToBatchReadObject(null, bytesKey, AerospikeAPIConstants.RecordKeyType.BYTES, null));
@@ -264,14 +255,15 @@ public class BatchCorrectTests {
         String payLoad = objectMapper.writeValueAsString(batchKeys);
         Map<String, Object> batchResponse = batchHandler.perform(mockMVC, endpoint, payLoad);
         List<Map<String, Object>> returnedRecords = (List<Map<String, Object>>) batchResponse.get("batchRecords");
-        Assert.assertEquals(1, returnedRecords.size());
+        Assertions.assertEquals(1, returnedRecords.size());
 
         client.get(null, batchRecs.stream().map(r -> (BatchRead) r).toList());
-        Assert.assertTrue(compareRestRecordsToBatchRecords(returnedRecords, batchRecs));
+        Assertions.assertTrue(compareRestRecordsToBatchRecords(batchComparator, returnedRecords, batchRecs));
     }
 
-    @Test
-    public void testGetExistingRecordsWithDigestKey() throws Exception {
+    @ParameterizedTest
+    @MethodSource("mappers")
+    public void testGetExistingRecordsWithDigestKey(RestBatchComparator batchComparator, BatchHandler batchHandler) throws Exception {
         List<Map<String, Object>> batchKeys = new ArrayList<>();
         List<BatchRecord> batchRecs = new ArrayList<>();
         batchKeys.add(keyToBatchReadObject(null, keys[0], AerospikeAPIConstants.RecordKeyType.DIGEST, null));
@@ -280,14 +272,15 @@ public class BatchCorrectTests {
         String payLoad = objectMapper.writeValueAsString(batchKeys);
         Map<String, Object> batchResponse = batchHandler.perform(mockMVC, endpoint, payLoad);
         List<Map<String, Object>> returnedRecords = (List<Map<String, Object>>) batchResponse.get("batchRecords");
-        Assert.assertEquals(1, returnedRecords.size());
+        Assertions.assertEquals(1, returnedRecords.size());
 
         client.get(null, batchRecs.stream().map(r -> (BatchRead) r).toList());
-        Assert.assertTrue(compareRestRecordsToBatchRecords(returnedRecords, batchRecs));
+        Assertions.assertTrue(compareRestRecordsToBatchRecords(batchComparator, returnedRecords, batchRecs));
     }
 
-    @Test
-    public void testGetRecordCDT() throws Exception {
+    @ParameterizedTest
+    @MethodSource("mappers")
+    public void testGetRecordCDT(RestBatchComparator batchComparator, BatchHandler batchHandler) throws Exception {
         List<Map<String, Object>> batchKeys = new ArrayList<>();
         Map<String, Object> batchRecReq = new HashMap<>();
         List<Map<String, Object>> opsList = new ArrayList<>();
@@ -317,15 +310,16 @@ public class BatchCorrectTests {
         String payLoad = objectMapper.writeValueAsString(batchKeys);
         Map<String, Object> batchResponse = batchHandler.perform(mockMVC, endpoint, payLoad);
         List<Map<String, Object>> returnedRecords = (List<Map<String, Object>>) batchResponse.get("batchRecords");
-        Assert.assertEquals(1, returnedRecords.size());
+        Assertions.assertEquals(1, returnedRecords.size());
         Map<String, Object> batchRecord = returnedRecords.get(0);
         Map<String, Object> record = (Map<String, Object>) batchRecord.get("record");
         Map<String, Object> bins = (Map<String, Object>) record.get("bins");
-        Assert.assertEquals(2, bins.get("bin5"));
+        Assertions.assertEquals(2, bins.get("bin5"));
     }
 
-    @Test
-    public void testWriteSingleExistingRecord() throws Exception {
+    @ParameterizedTest
+    @MethodSource("mappers")
+    public void testWriteSingleExistingRecord(RestBatchComparator batchComparator, BatchHandler batchHandler) throws Exception {
         List<Map<String, Object>> batchKeys = new ArrayList<>();
         List<BatchRecord> batchRecs = new ArrayList<>();
         List<Map<String, Object>> expectedOpsListMap = new ArrayList<>();
@@ -353,15 +347,16 @@ public class BatchCorrectTests {
 
         Record actualRecord = client.get(null, keys[3]);
         client.operate(null, batchRecs);
-        Assert.assertEquals(1, returnedRecords.size());
-        Assert.assertTrue(compareRestRecordsToBatchRecords(returnedRecords, batchRecs));
+        Assertions.assertEquals(1, returnedRecords.size());
+        Assertions.assertTrue(compareRestRecordsToBatchRecords(batchComparator, returnedRecords, batchRecs));
 
-        Assert.assertEquals(4L, actualRecord.bins.get("bin1"));
-        Assert.assertEquals("new val", actualRecord.bins.get("bin2"));
+        Assertions.assertEquals(4L, actualRecord.bins.get("bin1"));
+        Assertions.assertEquals("new val", actualRecord.bins.get("bin2"));
     }
 
-    @Test
-    public void testWriteExistingRecordWithUpdateOnly() throws Exception {
+    @ParameterizedTest
+    @MethodSource("mappers")
+    public void testWriteExistingRecordWithUpdateOnly(RestBatchComparator batchComparator, BatchHandler batchHandler) throws Exception {
         List<Map<String, Object>> batchKeys = new ArrayList<>();
         List<Map<String, Object>> expectedOpsListMap = new ArrayList<>();
         Key key = new Key("test", "testset", "does not exist");
@@ -382,17 +377,18 @@ public class BatchCorrectTests {
         Map<String, Object> batchResponse = batchHandler.perform(mockMVC, endpoint, payLoad);
         List<Map<String, Object>> returnedRecords = (List<Map<String, Object>>) batchResponse.get("batchRecords");
 
-        Assert.assertEquals(1, returnedRecords.size());
+        Assertions.assertEquals(1, returnedRecords.size());
         Map<String, Object> returnedRecord = returnedRecords.get(0);
 
-        Assert.assertEquals(2, returnedRecord.get("resultCode"));
-        Assert.assertEquals("Key not found", returnedRecord.get("resultCodeString"));
-        Assert.assertNull(returnedRecord.get("record"));
-        Assert.assertFalse((boolean) returnedRecord.get("inDoubt"));
+        Assertions.assertEquals(2, returnedRecord.get("resultCode"));
+        Assertions.assertEquals("Key not found", returnedRecord.get("resultCodeString"));
+        Assertions.assertNull(returnedRecord.get("record"));
+        Assertions.assertFalse((boolean) returnedRecord.get("inDoubt"));
     }
 
-    @Test
-    public void testWriteExistingRecordWithExpectGenEqual() throws Exception {
+    @ParameterizedTest
+    @MethodSource("mappers")
+    public void testWriteExistingRecordWithExpectGenEqual(RestBatchComparator batchComparator, BatchHandler batchHandler) throws Exception {
         List<Map<String, Object>> batchKeys = new ArrayList<>();
         List<Map<String, Object>> expectedOpsListMap = new ArrayList<>();
         Key key = new Key("test", "testset", "does not exist");
@@ -414,17 +410,18 @@ public class BatchCorrectTests {
         Map<String, Object> batchResponse = batchHandler.perform(mockMVC, endpoint, payLoad);
         List<Map<String, Object>> returnedRecords = (List<Map<String, Object>>) batchResponse.get("batchRecords");
 
-        Assert.assertEquals(1, returnedRecords.size());
+        Assertions.assertEquals(1, returnedRecords.size());
         Map<String, Object> returnedRecord = returnedRecords.get(0);
 
-        Assert.assertEquals(3, returnedRecord.get("resultCode"));
-        Assert.assertEquals("Generation error", returnedRecord.get("resultCodeString"));
-        Assert.assertNull(returnedRecord.get("record"));
-        Assert.assertFalse((boolean) returnedRecord.get("inDoubt"));
+        Assertions.assertEquals(3, returnedRecord.get("resultCode"));
+        Assertions.assertEquals("Generation error", returnedRecord.get("resultCodeString"));
+        Assertions.assertNull(returnedRecord.get("record"));
+        Assertions.assertFalse((boolean) returnedRecord.get("inDoubt"));
     }
 
-    @Test
-    public void testSingleUDFWithCommitMaster() throws Exception {
+    @ParameterizedTest
+    @MethodSource("mappers")
+    public void testSingleUDFWithCommitMaster(RestBatchComparator batchComparator, BatchHandler batchHandler) throws Exception {
         List<Map<String, Object>> batchRecReq = new ArrayList<>();
         BatchUDFPolicy policy = new BatchUDFPolicy();
         policy.commitLevel = CommitLevel.COMMIT_MASTER;
@@ -445,14 +442,15 @@ public class BatchCorrectTests {
         List<Map<String, Object>> returnedRecords = (List<Map<String, Object>>) batchResponse.get("batchRecords");
 
         Record record = client.get(null, keys[0]);
-        Assert.assertEquals(1, returnedRecords.size());
-        Assert.assertEquals(0, returnedRecords.get(0).get("resultCode"));
+        Assertions.assertEquals(1, returnedRecords.size());
+        Assertions.assertEquals(0, returnedRecords.get(0).get("resultCode"));
 
-        Assert.assertEquals(binVal, record.bins.getOrDefault(bin, "error"));
+        Assertions.assertEquals(binVal, record.bins.getOrDefault(bin, "error"));
     }
 
-    @Test
-    public void testSingleDeleteExistingRecord() throws Exception {
+    @ParameterizedTest
+    @MethodSource("mappers")
+    public void testSingleDeleteExistingRecord(RestBatchComparator batchComparator, BatchHandler batchHandler) throws Exception {
         List<Map<String, Object>> batchRecReq = new ArrayList<>();
         Map<String, Object> batchUDFMapReq = keyToBatchDeleteObject(null, keys[0], null);
 
@@ -463,13 +461,14 @@ public class BatchCorrectTests {
         List<Map<String, Object>> returnedRecords = (List<Map<String, Object>>) batchResponse.get("batchRecords");
 
         boolean recordStillExists = client.exists(null, keys[0]);
-        Assert.assertEquals(1, returnedRecords.size());
-        Assert.assertEquals(0, returnedRecords.get(0).get("resultCode"));
-        Assert.assertFalse(recordStillExists);
+        Assertions.assertEquals(1, returnedRecords.size());
+        Assertions.assertEquals(0, returnedRecords.get(0).get("resultCode"));
+        Assertions.assertFalse(recordStillExists);
     }
 
-    @Test
-    public void testSingleDeleteNonExistingRecord() throws Exception {
+    @ParameterizedTest
+    @MethodSource("mappers")
+    public void testSingleDeleteNonExistingRecord(RestBatchComparator batchComparator, BatchHandler batchHandler) throws Exception {
         List<Map<String, Object>> batchRecReq = new ArrayList<>();
         Map<String, Object> batchUDFMapReq = keyToBatchDeleteObject(null, new Key("test", "testset", "does not exist"),
                 null);
@@ -481,14 +480,15 @@ public class BatchCorrectTests {
         List<Map<String, Object>> returnedRecords = (List<Map<String, Object>>) batchResponse.get("batchRecords");
         Map<String, Object> returnedRecord = returnedRecords.get(0);
 
-//        Assert.assertEquals(0, returnedRecord.get("resultCode"));
-//        Assert.assertEquals("Key not found", returnedRecord.get("resultCodeString"));
-//        Assert.assertNull(returnedRecord.get("record"));
-        Assert.assertFalse((boolean) returnedRecord.get("inDoubt"));
+//        Assertions.assertEquals(0, returnedRecord.get("resultCode"));
+//        Assertions.assertEquals("Key not found", returnedRecord.get("resultCodeString"));
+//        Assertions.assertNull(returnedRecord.get("record"));
+        Assertions.assertFalse((boolean) returnedRecord.get("inDoubt"));
     }
 
-    @Test
-    public void testSingleDeleteExpectGenEqual() throws Exception {
+    @ParameterizedTest
+    @MethodSource("mappers")
+    public void testSingleDeleteExpectGenEqual(RestBatchComparator batchComparator, BatchHandler batchHandler) throws Exception {
         List<Map<String, Object>> batchRecReq = new ArrayList<>();
         BatchDeletePolicy policy = new BatchDeletePolicy();
         policy.generationPolicy = GenerationPolicy.EXPECT_GEN_EQUAL;
@@ -503,14 +503,15 @@ public class BatchCorrectTests {
         List<Map<String, Object>> returnedRecords = (List<Map<String, Object>>) batchResponse.get("batchRecords");
         Map<String, Object> returnedRecord = returnedRecords.get(0);
 
-        Assert.assertEquals(3, returnedRecord.get("resultCode"));
-        Assert.assertEquals("Generation error", returnedRecord.get("resultCodeString"));
-        Assert.assertNull(returnedRecord.get("record"));
-        Assert.assertFalse((boolean) returnedRecord.get("inDoubt"));
+        Assertions.assertEquals(3, returnedRecord.get("resultCode"));
+        Assertions.assertEquals("Generation error", returnedRecord.get("resultCodeString"));
+        Assertions.assertNull(returnedRecord.get("record"));
+        Assertions.assertFalse((boolean) returnedRecord.get("inDoubt"));
     }
 
-    @Test
-    public void testComplexMultiBatchOperation() throws Exception {
+    @ParameterizedTest
+    @MethodSource("mappers")
+    public void testComplexMultiBatchOperation(RestBatchComparator batchComparator, BatchHandler batchHandler) throws Exception {
         List<Map<String, Object>> batchRecReq = new ArrayList<>();
         BatchDeletePolicy deletePolicy = new BatchDeletePolicy();
         deletePolicy.durableDelete = true;
@@ -544,11 +545,11 @@ public class BatchCorrectTests {
         Map<String, Object> batchResponse = batchHandler.perform(mockMVC, endpoint, payLoad);
         List<Map<String, Object>> returnedRecords = (List<Map<String, Object>>) batchResponse.get("batchRecords");
 
-        Assert.assertEquals(4, returnedRecords.size());
+        Assertions.assertEquals(4, returnedRecords.size());
         for (Map<String, Object> record : returnedRecords) {
             int resultCode = (int) record.get("resultCode");
             if (resultCode != ResultCode.OK && resultCode != ResultCode.ENTERPRISE_ONLY) {
-                Assert.fail(String.format("Expected OK or ENTERPRISE_ONLY response code. Received: %d", resultCode));
+                Assertions.fail(String.format("Expected OK or ENTERPRISE_ONLY response code. Received: %d", resultCode));
             }
         }
     }
@@ -659,7 +660,8 @@ public class BatchCorrectTests {
         return restKey;
     }
 
-    private boolean compareRestRecordsToBatchReads(List<Map<String, Object>> returnedRecords,
+    private boolean compareRestRecordsToBatchReads(RestBatchComparator batchComparator,
+                                                   List<Map<String, Object>> returnedRecords,
                                                    List<BatchRead> batchReads) {
         if (batchReads.size() != returnedRecords.size()) {
             return false;
@@ -672,7 +674,8 @@ public class BatchCorrectTests {
         return true;
     }
 
-    private boolean compareRestRecordsToBatchRecords(List<Map<String, Object>> returnedRecords,
+    private boolean compareRestRecordsToBatchRecords(RestBatchComparator batchComparator,
+                                                     List<Map<String, Object>> returnedRecords,
                                                      List<BatchRecord> batchRecords) {
         if (batchRecords.size() != returnedRecords.size()) {
             return false;
@@ -863,7 +866,7 @@ class JSONBatchHandler implements BatchHandler {
 
         int status = res.getStatus();
         if (status != 200) {
-            Assert.fail(
+            Assertions.fail(
                     String.format("Status expected:200 but was:%d\n Response: %s", status, res.getContentAsString()));
         }
 

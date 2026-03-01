@@ -16,17 +16,17 @@
  */
 package com.aerospike.restclient.domain.operationmodels;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 public class HLLInitOperationTest {
 
     @Test
     public void getMinHashBitCount() {
         HLLInitOperation op = new HLLInitOperation("bin", 0);
-        Assert.assertNull(op.getMinHashBitCount());
+        Assertions.assertNull(op.getMinHashBitCount());
         op.setMinHashBitCount(8);
-        Assert.assertEquals(Integer.valueOf(8), op.getMinHashBitCount());
+        Assertions.assertEquals(Integer.valueOf(8), op.getMinHashBitCount());
     }
 }
 

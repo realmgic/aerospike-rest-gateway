@@ -21,8 +21,10 @@ import com.aerospike.client.Value.BytesValue;
 import com.aerospike.restclient.util.AerospikeAPIConstants.RecordKeyType;
 import com.aerospike.restclient.util.KeyBuilder;
 import com.aerospike.restclient.util.RestClientErrors;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.util.Arrays;
 import java.util.Base64;
@@ -37,7 +39,7 @@ public class KeyBuilderTest {
         Key testKey = KeyBuilder.buildKey(testNS, testSet, testStrKey, null);
         Key realKey = new Key(testNS, testSet, testStrKey);
 
-        Assert.assertTrue(keysEqual(testKey, realKey));
+        Assertions.assertTrue(keysEqual(testKey, realKey));
     }
 
     @Test
@@ -45,7 +47,7 @@ public class KeyBuilderTest {
         Key testKey = KeyBuilder.buildKey(testNS, testSet, testStrKey, RecordKeyType.STRING);
         Key realKey = new Key(testNS, testSet, testStrKey);
 
-        Assert.assertTrue(keysEqual(testKey, realKey));
+        Assertions.assertTrue(keysEqual(testKey, realKey));
     }
 
     @Test
@@ -54,7 +56,7 @@ public class KeyBuilderTest {
         Key testKey = KeyBuilder.buildKey(testNS, testSet, longString, RecordKeyType.INTEGER);
         Key realKey = new Key(testNS, testSet, 5);
 
-        Assert.assertTrue(keysEqual(testKey, realKey));
+        Assertions.assertTrue(keysEqual(testKey, realKey));
     }
 
     @Test
@@ -65,7 +67,7 @@ public class KeyBuilderTest {
         Key testKey = KeyBuilder.buildKey(testNS, testSet, encodedBytes, RecordKeyType.BYTES);
         Key realKey = new Key(testNS, testSet, byteKey);
 
-        Assert.assertTrue(keysEqual(testKey, realKey));
+        Assertions.assertTrue(keysEqual(testKey, realKey));
     }
 
     @Test
@@ -79,7 +81,7 @@ public class KeyBuilderTest {
         String encodedBytes = Base64.getUrlEncoder().encodeToString(keyDigest);
 
         Key testKey = KeyBuilder.buildKey(testNS, testSet, encodedBytes, RecordKeyType.DIGEST);
-        Assert.assertTrue(keysEqual(testKey, keyFromDigest));
+        Assertions.assertTrue(keysEqual(testKey, keyFromDigest));
     }
 
     @Test
@@ -87,12 +89,12 @@ public class KeyBuilderTest {
         Key testKey = KeyBuilder.buildKey(testNS, null, testStrKey, null);
         Key realKey = new Key(testNS, null, testStrKey);
 
-        Assert.assertTrue(keysEqual(testKey, realKey));
+        Assertions.assertTrue(keysEqual(testKey, realKey));
     }
 
-    @Test(expected = RestClientErrors.InvalidKeyError.class)
+    @Test
     public void testWithInvalidIntegerKey() {
-        KeyBuilder.buildKey(testNS, testSet, "five", RecordKeyType.INTEGER);
+        assertThrows(RestClientErrors.InvalidKeyError.class, () -> KeyBuilder.buildKey(testNS, testSet, "five", RecordKeyType.INTEGER));
     }
 
     /*

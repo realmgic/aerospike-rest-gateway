@@ -22,47 +22,46 @@ import com.aerospike.restclient.ASTestMapper;
 import com.aerospike.restclient.ASTestUtils;
 import com.aerospike.restclient.config.JSONMessageConverter;
 import com.aerospike.restclient.config.MsgPackConverter;
-import org.junit.Assert;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 
-@RunWith(Parameterized.class)
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+
 public class MapPolicyTest {
-    ASTestMapper mapper;
 
-    @Parameterized.Parameters
-    public static Object[] getParams() {
-        return new Object[]{
-                new JsonMapPolicyMapper(), new MsgPackMapPolicyMapper(),
-                };
+    static Stream<Arguments> getParams() {
+        return Stream.of(
+                Arguments.of(new JsonMapPolicyMapper()),
+                Arguments.of(new MsgPackMapPolicyMapper())
+        );
     }
 
-    public MapPolicyTest(ASTestMapper mapper) {
-        this.mapper = mapper;
-    }
-
-    @Test
-    public void testEmptyMapPolicy() throws Exception {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    void testEmptyMapPolicy(ASTestMapper mapper) throws Exception {
         Map<String, Object> policyMap = new HashMap<>();
 
         MapPolicy MapPolicy = (MapPolicy) mapper.bytesToObject(mapper.objectToBytes(policyMap));
 
-        Assert.assertNull(MapPolicy.getOrder());
-        Assert.assertNull(MapPolicy.getWriteFlags());
+        assertNull(MapPolicy.getOrder());
+        assertNull(MapPolicy.getWriteFlags());
 
         com.aerospike.client.cdt.MapPolicy asMapPolicy = MapPolicy.toMapPolicy();
-        Assert.assertEquals(asMapPolicy.attributes, com.aerospike.client.cdt.MapPolicy.Default.attributes);
-        Assert.assertEquals(asMapPolicy.flags, com.aerospike.client.cdt.MapPolicy.Default.flags);
+        assertEquals(asMapPolicy.attributes, com.aerospike.client.cdt.MapPolicy.Default.attributes);
+        assertEquals(asMapPolicy.flags, com.aerospike.client.cdt.MapPolicy.Default.flags);
     }
 
-    @Test
-    public void toMapPolicyWithOrderAndWriteFlags() throws Exception {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    void toMapPolicyWithOrderAndWriteFlags(ASTestMapper mapper) throws Exception {
         Map<String, Object> policyMap = new HashMap<>();
         policyMap.put("order", "UNORDERED");
         policyMap.put("writeFlags", new String[]{"NO_FAIL", "CREATE_ONLY"});
@@ -72,26 +71,27 @@ public class MapPolicyTest {
 
         MapPolicy MapPolicy = (MapPolicy) mapper.bytesToObject(mapper.objectToBytes(policyMap));
 
-        Assert.assertEquals(MapPolicy.getOrder(), MapOrder.UNORDERED);
+        assertEquals(MapPolicy.getOrder(), MapOrder.UNORDERED);
         ASTestUtils.compareCollection(expectedWriteFlags, MapPolicy.getWriteFlags());
 
         com.aerospike.client.cdt.MapPolicy asMapPolicy = MapPolicy.toMapPolicy();
-        Assert.assertEquals(asMapPolicy.attributes, MapOrder.UNORDERED.attributes);
-        Assert.assertEquals(asMapPolicy.flags, MapWriteFlags.NO_FAIL | MapWriteFlags.CREATE_ONLY);
+        assertEquals(asMapPolicy.attributes, MapOrder.UNORDERED.attributes);
+        assertEquals(asMapPolicy.flags, MapWriteFlags.NO_FAIL | MapWriteFlags.CREATE_ONLY);
     }
 
-    @Test
-    public void toMapPolicyWithNoWriteFlags() throws Exception {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    void toMapPolicyWithNoWriteFlags(ASTestMapper mapper) throws Exception {
         Map<String, Object> policyMap = new HashMap<>();
         policyMap.put("order", "UNORDERED");
 
         MapPolicy MapPolicy = (MapPolicy) mapper.bytesToObject(mapper.objectToBytes(policyMap));
 
-        Assert.assertEquals(MapPolicy.getOrder(), MapOrder.UNORDERED);
+        assertEquals(MapPolicy.getOrder(), MapOrder.UNORDERED);
 
         com.aerospike.client.cdt.MapPolicy asMapPolicy = MapPolicy.toMapPolicy();
-        Assert.assertEquals(asMapPolicy.attributes, MapOrder.UNORDERED.attributes);
-        Assert.assertEquals(asMapPolicy.flags, 0);
+        assertEquals(asMapPolicy.attributes, MapOrder.UNORDERED.attributes);
+        assertEquals(asMapPolicy.flags, 0);
     }
 }
 

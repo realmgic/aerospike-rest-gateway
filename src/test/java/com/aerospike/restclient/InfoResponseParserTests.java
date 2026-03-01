@@ -18,8 +18,10 @@ package com.aerospike.restclient;
 
 import com.aerospike.client.AerospikeException;
 import com.aerospike.restclient.util.InfoResponseParser;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 public class InfoResponseParserTests {
 
@@ -28,27 +30,26 @@ public class InfoResponseParserTests {
         int repl_factor = 2;
         String repl_factor_string = String.format("'ns_cluster_size=1;effective_replication_factor=%d;objects=0;",
                 repl_factor);
-        Assert.assertEquals(repl_factor, InfoResponseParser.getReplicationFactor(repl_factor_string, "irrelevant"));
+        Assertions.assertEquals(repl_factor, InfoResponseParser.getReplicationFactor(repl_factor_string, "irrelevant"));
     }
 
     @Test
     public void getoldstyleReplicationFactor1() {
         int repl_factor = 2;
         String repl_factor_string = String.format("'ns_cluster_size=1;repl-factor=%d;objects=0;", repl_factor);
-        Assert.assertEquals(repl_factor, InfoResponseParser.getReplicationFactor(repl_factor_string, "irrelevant"));
+        Assertions.assertEquals(repl_factor, InfoResponseParser.getReplicationFactor(repl_factor_string, "irrelevant"));
     }
 
     @Test
     public void getoldstyleReplicationFactor2() {
         int repl_factor = 2;
         String repl_factor_string = String.format("'ns_cluster_size=1;replication-factor=%d;objects=0;", repl_factor);
-        Assert.assertEquals(repl_factor, InfoResponseParser.getReplicationFactor(repl_factor_string, "irrelevant"));
+        Assertions.assertEquals(repl_factor, InfoResponseParser.getReplicationFactor(repl_factor_string, "irrelevant"));
     }
 
-    @Test(expected = AerospikeException.class)
+    @Test
     public void invalidReplicationFactorResponse() {
-        int repl_factor = 2;
         String repl_factor_string = "";
-        Assert.assertEquals(repl_factor, InfoResponseParser.getReplicationFactor(repl_factor_string, "irrelevant"));
+        assertThrows(AerospikeException.class, () -> InfoResponseParser.getReplicationFactor(repl_factor_string, "irrelevant"));
     }
 }

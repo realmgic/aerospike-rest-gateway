@@ -17,8 +17,8 @@
 package com.aerospike.restclient.domain.operationmodels;
 
 import com.aerospike.client.Operation;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 public class MapSetPolicyOperationTest {
     @Test
@@ -26,8 +26,8 @@ public class MapSetPolicyOperationTest {
         MapSetPolicyOperation op = new MapSetPolicyOperation("bin", null);
         Operation asOp = op.toOperation();
 
-        Assert.assertEquals(Operation.Type.MAP_MODIFY, asOp.type);
-        Assert.assertEquals("bin", asOp.binName);
+        Assertions.assertEquals(Operation.Type.MAP_MODIFY, asOp.type);
+        Assertions.assertEquals("bin", asOp.binName);
     }
 
     @Test
@@ -35,7 +35,7 @@ public class MapSetPolicyOperationTest {
         MapSetPolicyOperation op = new MapSetPolicyOperation("bin", new MapPolicy());
         Operation asOp = op.toOperation();
 
-        Assert.assertEquals(Operation.Type.MAP_MODIFY, asOp.type);
-        Assert.assertEquals("bin", asOp.binName);
+        Assertions.assertEquals(Operation.Type.MAP_MODIFY, asOp.type);
+        Assertions.assertEquals("bin", asOp.binName);
     }
 }

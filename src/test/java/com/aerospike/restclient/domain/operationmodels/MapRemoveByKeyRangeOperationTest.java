@@ -16,31 +16,31 @@
  */
 package com.aerospike.restclient.domain.operationmodels;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 public class MapRemoveByKeyRangeOperationTest {
     @Test
     public void isInverted() {
         MapRemoveByKeyRangeOperation op = new MapRemoveByKeyRangeOperation("bin", MapReturnType.RANK);
-        Assert.assertFalse(op.isInverted());
+        Assertions.assertFalse(op.isInverted());
         op.setInverted(true);
-        Assert.assertTrue(op.isInverted());
+        Assertions.assertTrue(op.isInverted());
     }
 
     @Test
     public void getKeyBegin() {
         MapRemoveByKeyRangeOperation op = new MapRemoveByKeyRangeOperation("bin", MapReturnType.RANK);
-        Assert.assertNull(op.getKeyBegin());
+        Assertions.assertNull(op.getKeyBegin());
         op.setKeyBegin(true);
-        Assert.assertTrue((Boolean) op.getKeyBegin());
+        Assertions.assertTrue((Boolean) op.getKeyBegin());
     }
 
     @Test
     public void getKeyEnd() {
         MapRemoveByKeyRangeOperation op = new MapRemoveByKeyRangeOperation("bin", MapReturnType.RANK);
-        Assert.assertNull(op.getKeyEnd());
+        Assertions.assertNull(op.getKeyEnd());
         op.setKeyEnd(true);
-        Assert.assertTrue((Boolean) op.getKeyEnd());
+        Assertions.assertTrue((Boolean) op.getKeyEnd());
     }
 }

@@ -26,7 +26,7 @@ import com.aerospike.client.policy.WritePolicy;
 import com.aerospike.client.query.Filter;
 import com.aerospike.restclient.domain.RestClientOperation;
 import com.aerospike.restclient.util.AerospikeAPIConstants;
-import org.junit.Assert;
+import org.junit.jupiter.api.Assertions;
 import org.mockito.ArgumentMatcher;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockHttpServletResponse;
@@ -272,13 +272,13 @@ public class ASTestUtils {
     }
 
     public static void compareCTX(CTX expected, CTX actual) {
-        Assert.assertEquals(expected.id, actual.id);
-        Assert.assertEquals(expected.value, actual.value);
+        Assertions.assertEquals(expected.id, actual.id);
+        Assertions.assertEquals(expected.value, actual.value);
     }
 
     public static void compareFilter(Filter expected, Filter actual) {
-        Assert.assertEquals(expected, actual);
-        Assert.assertArrayEquals(expected.getPackedCtx(),
+        Assertions.assertEquals(expected, actual);
+        Assertions.assertArrayEquals(expected.getPackedCtx(),
                 actual.getPackedCtx()); // At this time, equal() does not check CTX
     }
 
@@ -390,7 +390,8 @@ public class ASTestUtils {
             int attempts = 10;
             while (attempts > 0) {
                 String response = Info.request(null, node, "sindex/" + namespace + "/" + indexName);
-                if (response.trim().startsWith("FAIL:201")) {
+                
+                if (response.trim().startsWith("FAIL:201") || response.trim().startsWith("ERROR:201")) {
                     try {
                         Thread.sleep(250);
                     } catch (InterruptedException e) {
@@ -432,7 +433,7 @@ public class ASTestUtils {
             int attempts = 10;
             while (attempts > 0) {
                 String response = Info.request(null, node, "sindex/" + namespace + "/" + indexName);
-                if (response.trim().startsWith("FAIL:201")) {
+                if (response.trim().startsWith("FAIL:201") || response.trim().startsWith("ERROR:201")) {
                     break;
                 }
                 try {
@@ -457,7 +458,7 @@ public class ASTestUtils {
 
         int status = res.getStatus();
         if (status != 200) {
-            Assert.fail(
+            Assertions.fail(
                     String.format("Status expected:200 but was:%d\n Response: %s", status, res.getContentAsString()));
         }
 

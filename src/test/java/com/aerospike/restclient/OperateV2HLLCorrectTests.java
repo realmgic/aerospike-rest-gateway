@@ -21,30 +21,32 @@ import com.aerospike.client.*;
 import com.aerospike.client.operation.HLLOperation;
 import com.aerospike.client.operation.HLLPolicy;
 import com.aerospike.restclient.util.AerospikeOperation;
-import org.junit.*;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Assumptions;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.junit4.rules.SpringClassRule;
-import org.springframework.test.context.junit4.rules.SpringMethodRule;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
 import java.util.*;
+import java.util.stream.Stream;
 
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@RunWith(Parameterized.class)
 @SpringBootTest
 public class OperateV2HLLCorrectTests {
-
-    @ClassRule
-    public static final SpringClassRule springClassRule = new SpringClassRule();
-
-    @Rule
-    public final SpringMethodRule springMethodRule = new SpringMethodRule();
 
     private MockMvc mockMVC;
 
@@ -54,66 +56,74 @@ public class OperateV2HLLCorrectTests {
     @Autowired
     private WebApplicationContext wac;
 
-    private final Key testKey;
-    private final String testEndpoint;
-    private final String OPERATION_TYPE_KEY = "type";
+    private static final String OPERATION_TYPE_KEY = "type";
+    private static final List<Object> values = Arrays.asList("a", "b", "c", "d", "e", "f", "g", "g");
+    private static final List<Object> values2 = Arrays.asList("a", "b", "c", "d", "e", "h", "i", "j");
 
-    private Map<String, Object> opRequest;
-    private List<Map<String, Object>> opList;
-    private final List<Object> values = Arrays.asList("a", "b", "c", "d", "e", "f", "g", "g");
-    private final List<Object> values2 = Arrays.asList("a", "b", "c", "d", "e", "h", "i", "j");
+    static Stream<Arguments> getParams() {
+        return Stream.of(
+                Arguments.of(new JSONOperationV2Performer(), true),
+                Arguments.of(new MsgPackOperationV2Performer(), true),
+                Arguments.of(new JSONOperationV2Performer(), false),
+                Arguments.of(new MsgPackOperationV2Performer(), false)
+        );
+    }
 
-    @Before
+    private static Key keyFor(boolean useSet) {
+        return useSet ? new Key("test", "junit", "hllop") : new Key("test", null, "hllop");
+    }
+
+    private static String endpointFor(boolean useSet) {
+        return useSet ? ASTestUtils.buildEndpointV2("operate", "test", "junit", "hllop") : ASTestUtils.buildEndpointV2("operate", "test", "hllop");
+    }
+
+    @BeforeEach
     public void setup() {
         mockMVC = MockMvcBuilders.webAppContextSetup(wac).build();
-        client.operate(null, testKey, HLLOperation.init(HLLPolicy.Default, "hll", 8, 8));
-        client.operate(null, testKey, HLLOperation.init(HLLPolicy.Default, "hll2", 8, 8));
-        opList = new ArrayList<>();
-        opRequest = new HashMap<>();
+    }
+
+    private void createHLLBin(Key testKey, String testEndpoint, OperationV2Performer opPerformer, String binName, List<Object> vals) {
+        Map<String, Object> opRequest = new HashMap<>();
+        List<Map<String, Object>> opList = new ArrayList<>();
+        Map<String, Object> opMap = new HashMap<>();
+        opMap.put("binName", binName);
+        opMap.put("values", vals);
+        opMap.put(OPERATION_TYPE_KEY, AerospikeOperation.HLL_ADD);
+        opList.add(opMap);
         opRequest.put("opsList", opList);
+        opPerformer.performOperationsAndReturn(mockMVC, testEndpoint, opRequest);
     }
 
-    @After
-    public void clean() {
-        client.delete(null, testKey);
-    }
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testHLLAdd(OperationV2Performer opPerformer, boolean useSet) {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+            client.operate(null, testKey, HLLOperation.init(HLLPolicy.Default, "hll", 8, 8));
+            client.operate(null, testKey, HLLOperation.init(HLLPolicy.Default, "hll2", 8, 8));
+            createHLLBin(testKey, testEndpoint, opPerformer, "hll", values);
 
-    private final OperationV2Performer opPerformer;
+            Record record = client.operate(null, testKey, HLLOperation.getCount("hll"));
+            long count = (long) record.bins.get("hll");
 
-    @Parameterized.Parameters
-    public static Object[][] getParams() {
-        return new Object[][]{
-                {new JSONOperationV2Performer(), true},
-                {new MsgPackOperationV2Performer(), true},
-                {new JSONOperationV2Performer(), false},
-                {new MsgPackOperationV2Performer(), false}
-        };
-    }
-
-    /* Set up the correct msgpack/json performer for this set of runs. Also decided whether to use the endpoint with a set or without */
-    public OperateV2HLLCorrectTests(OperationV2Performer performer, boolean useSet) {
-        this.opPerformer = performer;
-        if (useSet) {
-            testKey = new Key("test", "junit", "hllop");
-            testEndpoint = ASTestUtils.buildEndpointV2("operate", "test", "junit", "hllop");
-        } else {
-            testKey = new Key("test", null, "hllop");
-            testEndpoint = ASTestUtils.buildEndpointV2("operate", "test", "hllop");
+            assertEquals(7, count);
+        } finally {
+            client.delete(null, testKey);
         }
     }
 
-    @Test
-    public void testHLLAdd() {
-        createHLLBin("hll", values);
-
-        Record record = client.operate(null, testKey, HLLOperation.getCount("hll"));
-        long count = (long) record.bins.get("hll");
-
-        Assert.assertEquals(7, count);
-    }
-
-    @Test
-    public void testHLLAddWithIndexBitCount() throws Exception {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testHLLAddWithIndexBitCount(OperationV2Performer opPerformer, boolean useSet) throws Exception {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+        client.operate(null, testKey, HLLOperation.init(HLLPolicy.Default, "hll", 8, 8));
+        client.operate(null, testKey, HLLOperation.init(HLLPolicy.Default, "hll2", 8, 8));
+        List<Map<String, Object>> opList = new ArrayList<>();
+        Map<String, Object> opRequest = new HashMap<>();
+        opRequest.put("opsList", opList);
         Map<String, Object> opMap = new HashMap<>();
         opMap.put("binName", "hll");
         opMap.put("values", values);
@@ -126,11 +136,23 @@ public class OperateV2HLLCorrectTests {
         Record record = client.operate(null, testKey, HLLOperation.getCount("hll"));
         long count = (long) record.bins.get("hll");
 
-        Assert.assertEquals(7, count);
+        Assertions.assertEquals(7, count);
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
-    @Test
-    public void testHLLAddWithMinHashBitCount() throws Exception {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testHLLAddWithMinHashBitCount(OperationV2Performer opPerformer, boolean useSet) throws Exception {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+        client.operate(null, testKey, HLLOperation.init(HLLPolicy.Default, "hll", 8, 8));
+        client.operate(null, testKey, HLLOperation.init(HLLPolicy.Default, "hll2", 8, 8));
+        List<Map<String, Object>> opList = new ArrayList<>();
+        Map<String, Object> opRequest = new HashMap<>();
+        opRequest.put("opsList", opList);
         Map<String, Object> opMap = new HashMap<>();
         opMap.put("binName", "hll");
         opMap.put("values", values);
@@ -144,15 +166,27 @@ public class OperateV2HLLCorrectTests {
         Record record = client.operate(null, testKey, HLLOperation.getCount("hll"));
         long count = (long) record.bins.get("hll");
 
-        Assert.assertEquals(7, count);
+        Assertions.assertEquals(7, count);
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
     private boolean isWithinRelativeError(long expected, long estimate, double relativeError) {
         return expected * (1 - relativeError) <= estimate || estimate <= expected * (1 + relativeError);
     }
 
-    @Test
-    public void testHLLFold() throws Exception {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testHLLFold(OperationV2Performer opPerformer, boolean useSet) throws Exception {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+        client.operate(null, testKey, HLLOperation.init(HLLPolicy.Default, "hll", 8, 8));
+        client.operate(null, testKey, HLLOperation.init(HLLPolicy.Default, "hll2", 8, 8));
+        List<Map<String, Object>> opList = new ArrayList<>();
+        Map<String, Object> opRequest = new HashMap<>();
+        opRequest.put("opsList", opList);
         List<Value> vals0 = new ArrayList<>();
         List<Value> vals1 = new ArrayList<>();
         int nEntries = 1 << 18;
@@ -187,14 +221,26 @@ public class OperateV2HLLCorrectTests {
         long countb1 = (Long) result.get(4);
         double countErr = (1.04 / Math.sqrt(Math.pow(2, 4))) * 6;
 
-        Assert.assertTrue(isWithinRelativeError(vals0.size(), countb, countErr));
-        Assert.assertTrue(isWithinRelativeError(vals0.size() + vals1.size(), countb1, countErr));
+        Assertions.assertTrue(isWithinRelativeError(vals0.size(), countb, countErr));
+        Assertions.assertTrue(isWithinRelativeError(vals0.size() + vals1.size(), countb1, countErr));
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
-    @Test
+    @ParameterizedTest
+    @MethodSource("getParams")
     @SuppressWarnings("unchecked")
-    public void testHLLGetCount() {
-        createHLLBin("hll", values);
+    public void testHLLGetCount(OperationV2Performer opPerformer, boolean useSet) {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+            client.operate(null, testKey, HLLOperation.init(HLLPolicy.Default, "hll", 8, 8));
+            client.operate(null, testKey, HLLOperation.init(HLLPolicy.Default, "hll2", 8, 8));
+            createHLLBin(testKey, testEndpoint, opPerformer, "hll", values);
+            List<Map<String, Object>> opList = new ArrayList<>();
+            Map<String, Object> opRequest = new HashMap<>();
+            opRequest.put("opsList", opList);
 
         Map<String, Object> opMap = new HashMap<>();
         opMap.put("binName", "hll");
@@ -206,13 +252,25 @@ public class OperateV2HLLCorrectTests {
         Map<String, Object> bins = (Map<String, Object>) record.get("bins");
         int count = (int) bins.get("hll");
 
-        Assert.assertEquals(7, count);
+        Assertions.assertEquals(7, count);
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
-    @Test
-    public void testHLLSetUnion() {
-        createHLLBin("hll", values);
-        createHLLBin("hll2", values2);
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testHLLSetUnion(OperationV2Performer opPerformer, boolean useSet) {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+            client.operate(null, testKey, HLLOperation.init(HLLPolicy.Default, "hll", 8, 8));
+            client.operate(null, testKey, HLLOperation.init(HLLPolicy.Default, "hll2", 8, 8));
+            List<Map<String, Object>> opList = new ArrayList<>();
+            Map<String, Object> opRequest = new HashMap<>();
+            opRequest.put("opsList", opList);
+            createHLLBin(testKey, testEndpoint, opPerformer, "hll", values);
+            createHLLBin(testKey, testEndpoint, opPerformer, "hll2", values2);
 
         Value.HLLValue hll2Bin = (Value.HLLValue) client.get(null, testKey).bins.get("hll2");
 
@@ -228,12 +286,24 @@ public class OperateV2HLLCorrectTests {
         Record record = client.operate(null, testKey, HLLOperation.getCount("hll"));
         long count = (long) record.bins.get("hll");
 
-        Assert.assertEquals(10, count);
+        Assertions.assertEquals(10, count);
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
-    @Test
-    public void testHLLRefreshCount() {
-        createHLLBin("hll", values);
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testHLLRefreshCount(OperationV2Performer opPerformer, boolean useSet) {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+            client.operate(null, testKey, HLLOperation.init(HLLPolicy.Default, "hll", 8, 8));
+            client.operate(null, testKey, HLLOperation.init(HLLPolicy.Default, "hll2", 8, 8));
+            List<Map<String, Object>> opList = new ArrayList<>();
+            Map<String, Object> opRequest = new HashMap<>();
+            opRequest.put("opsList", opList);
+            createHLLBin(testKey, testEndpoint, opPerformer, "hll", values);
 
         Map<String, Object> opMap = new HashMap<>();
 
@@ -246,14 +316,26 @@ public class OperateV2HLLCorrectTests {
         Record record = client.operate(null, testKey, HLLOperation.getCount("hll"));
         long count = (long) record.bins.get("hll");
 
-        Assert.assertEquals(7, count);
+        Assertions.assertEquals(7, count);
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
     @SuppressWarnings("unchecked")
-    @Test
-    public void testHLLGetUnion() {
-        createHLLBin("hll", values);
-        createHLLBin("hll2", values2);
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testHLLGetUnion(OperationV2Performer opPerformer, boolean useSet) {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+            client.operate(null, testKey, HLLOperation.init(HLLPolicy.Default, "hll", 8, 8));
+            client.operate(null, testKey, HLLOperation.init(HLLPolicy.Default, "hll2", 8, 8));
+            List<Map<String, Object>> opList = new ArrayList<>();
+            Map<String, Object> opRequest = new HashMap<>();
+            opRequest.put("opsList", opList);
+            createHLLBin(testKey, testEndpoint, opPerformer, "hll", values);
+            createHLLBin(testKey, testEndpoint, opPerformer, "hll2", values2);
 
         Value.HLLValue hll2Bin = (Value.HLLValue) client.get(null, testKey).bins.get("hll2");
 
@@ -276,14 +358,26 @@ public class OperateV2HLLCorrectTests {
             expected = (byte[]) ((Map<String, Map<String, Object>>) record.get("bins")).get("hll").get("object");
         }
         Value.HLLValue value = new Value.HLLValue(expected);
-        Assert.assertNotNull(value);
+        Assertions.assertNotNull(value);
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
     @SuppressWarnings("unchecked")
-    @Test
-    public void testHLLGetUnionCount() {
-        createHLLBin("hll", values);
-        createHLLBin("hll2", values2);
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testHLLGetUnionCount(OperationV2Performer opPerformer, boolean useSet) {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+            client.operate(null, testKey, HLLOperation.init(HLLPolicy.Default, "hll", 8, 8));
+            client.operate(null, testKey, HLLOperation.init(HLLPolicy.Default, "hll2", 8, 8));
+            List<Map<String, Object>> opList = new ArrayList<>();
+            Map<String, Object> opRequest = new HashMap<>();
+            opRequest.put("opsList", opList);
+            createHLLBin(testKey, testEndpoint, opPerformer, "hll", values);
+            createHLLBin(testKey, testEndpoint, opPerformer, "hll2", values2);
 
         Value.HLLValue hll2Bin = (Value.HLLValue) client.get(null, testKey).bins.get("hll2");
 
@@ -297,11 +391,21 @@ public class OperateV2HLLCorrectTests {
         Map<String, Object> res = opPerformer.performOperationsAndReturn(mockMVC, testEndpoint, opRequest);
         Map<String, Object> record = (Map<String, Object>) res.get("record");
         Integer count = ((Map<String, Integer>) record.get("bins")).get("hll");
-        Assert.assertEquals(10, count.intValue());
+        Assertions.assertEquals(10, count.intValue());
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
-    @Test
-    public void testHLLInit() throws Exception {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testHLLInit(OperationV2Performer opPerformer, boolean useSet) throws Exception {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+            List<Map<String, Object>> opList = new ArrayList<>();
+            Map<String, Object> opRequest = new HashMap<>();
+            opRequest.put("opsList", opList);
         int indexBits = 16;
         int minHashBits = 16;
 
@@ -318,35 +422,58 @@ public class OperateV2HLLCorrectTests {
         Record record = client.operate(null, testKey, HLLOperation.describe("hll"));
         List<?> description = record.getList("hll");
 
-        Assert.assertEquals(16L, description.get(0));
-        Assert.assertEquals(16L, description.get(1));
+        Assertions.assertEquals(16L, description.get(0));
+        Assertions.assertEquals(16L, description.get(1));
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
-    @Test
-    public void testHLLInitWithNullMinHashBits() throws Exception {
-        int indexBits = 16;
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testHLLInitWithNullMinHashBits(OperationV2Performer opPerformer, boolean useSet) throws Exception {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+            List<Map<String, Object>> opList = new ArrayList<>();
+            Map<String, Object> opRequest = new HashMap<>();
+            opRequest.put("opsList", opList);
+        
+            int indexBits = 16;
 
-        Map<String, Object> opMap = new HashMap<>();
+            Map<String, Object> opMap = new HashMap<>();
 
-        opMap.put("binName", "hll");
-        opMap.put("indexBitCount", indexBits);
-        opMap.put(OPERATION_TYPE_KEY, AerospikeOperation.HLL_INIT);
-        opList.add(opMap);
+            opMap.put("binName", "hll");
+            opMap.put("indexBitCount", indexBits);
+            opMap.put(OPERATION_TYPE_KEY, AerospikeOperation.HLL_INIT);
+            opList.add(opMap);
 
-        opPerformer.performOperationsAndExpect(mockMVC, testEndpoint, opRequest, status().isOk());
+            opPerformer.performOperationsAndExpect(mockMVC, testEndpoint, opRequest, status().isOk());
 
-        Record record = client.operate(null, testKey, HLLOperation.describe("hll"));
-        List<?> description = record.getList("hll");
-
-        Assert.assertEquals(16L, description.get(0));
-        Assert.assertEquals(8L, description.get(1));
+            Record record = client.operate(null, testKey, HLLOperation.describe("hll"));
+            List<?> description = record.getList("hll");
+                        
+            Assertions.assertEquals(16L, description.get(0));
+            Assertions.assertEquals(0L, description.get(1));
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
     @SuppressWarnings("unchecked")
-    @Test
-    public void testHLLGetIntersectCount() {
-        createHLLBin("hll", values);
-        createHLLBin("hll2", values2);
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testHLLGetIntersectCount(OperationV2Performer opPerformer, boolean useSet) {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+            client.operate(null, testKey, HLLOperation.init(HLLPolicy.Default, "hll", 8, 8));
+            client.operate(null, testKey, HLLOperation.init(HLLPolicy.Default, "hll2", 8, 8));
+            List<Map<String, Object>> opList = new ArrayList<>();
+            Map<String, Object> opRequest = new HashMap<>();
+            opRequest.put("opsList", opList);
+            createHLLBin(testKey, testEndpoint, opPerformer, "hll", values);
+            createHLLBin(testKey, testEndpoint, opPerformer, "hll2", values2);
 
         Value.HLLValue hll2Bin = (Value.HLLValue) client.get(null, testKey).bins.get("hll2");
 
@@ -360,14 +487,26 @@ public class OperateV2HLLCorrectTests {
         Map<String, Object> res = opPerformer.performOperationsAndReturn(mockMVC, testEndpoint, opRequest);
         Map<String, Object> record = (Map<String, Object>) res.get("record");
         Integer count = ((Map<String, Integer>) record.get("bins")).get("hll");
-        Assert.assertEquals(5, count.intValue());
+        Assertions.assertEquals(5, count.intValue());
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
     @SuppressWarnings("unchecked")
-    @Test
-    public void testHLLGetSimilarity() {
-        createHLLBin("hll", values);
-        createHLLBin("hll2", values2);
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testHLLGetSimilarity(OperationV2Performer opPerformer, boolean useSet) {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+            client.operate(null, testKey, HLLOperation.init(HLLPolicy.Default, "hll", 8, 8));
+            client.operate(null, testKey, HLLOperation.init(HLLPolicy.Default, "hll2", 8, 8));
+            List<Map<String, Object>> opList = new ArrayList<>();
+            Map<String, Object> opRequest = new HashMap<>();
+            opRequest.put("opsList", opList);
+            createHLLBin(testKey, testEndpoint, opPerformer, "hll", values);
+            createHLLBin(testKey, testEndpoint, opPerformer, "hll2", values2);
 
         Value.HLLValue hll2Bin = (Value.HLLValue) client.get(null, testKey).bins.get("hll2");
 
@@ -381,13 +520,25 @@ public class OperateV2HLLCorrectTests {
         Map<String, Object> res = opPerformer.performOperationsAndReturn(mockMVC, testEndpoint, opRequest);
         Map<String, Object> record = (Map<String, Object>) res.get("record");
         Double count = ((Map<String, Double>) record.get("bins")).get("hll");
-        Assert.assertEquals(0.5, count, 0.005);
+        Assertions.assertEquals(0.5, count, 0.005);
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
     @SuppressWarnings("unchecked")
-    @Test
-    public void testHLLDescribe() {
-        createHLLBin("hll", values);
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testHLLDescribe(OperationV2Performer opPerformer, boolean useSet) {
+        Key testKey = keyFor(useSet);
+        String testEndpoint = endpointFor(useSet);
+        try {
+            client.operate(null, testKey, HLLOperation.init(HLLPolicy.Default, "hll", 8, 8));
+            client.operate(null, testKey, HLLOperation.init(HLLPolicy.Default, "hll2", 8, 8));
+            List<Map<String, Object>> opList = new ArrayList<>();
+            Map<String, Object> opRequest = new HashMap<>();
+            opRequest.put("opsList", opList);
+            createHLLBin(testKey, testEndpoint, opPerformer, "hll", values);
 
         Map<String, Object> opMap = new HashMap<>();
 
@@ -398,21 +549,10 @@ public class OperateV2HLLCorrectTests {
         Map<String, Object> res = opPerformer.performOperationsAndReturn(mockMVC, testEndpoint, opRequest);
         Map<String, Object> record = (Map<String, Object>) res.get("record");
         List<Integer> values = ((Map<String, List<Integer>>) record.get("bins")).get("hll");
-        Assert.assertEquals(Arrays.asList(8, 8), values);
-    }
-
-    private void createHLLBin(String binName, List<Object> values) {
-        Map<String, Object> opRequest = new HashMap<>();
-        Map<String, Object> opMap = new HashMap<>();
-        List<Map<String, Object>> opList = new ArrayList<>();
-
-        opMap.put("binName", binName);
-        opMap.put("values", values);
-        opMap.put(OPERATION_TYPE_KEY, AerospikeOperation.HLL_ADD);
-
-        opList.add(opMap);
-        opRequest.put("opsList", opList);
-        opPerformer.performOperationsAndReturn(mockMVC, testEndpoint, opRequest);
+        Assertions.assertEquals(Arrays.asList(8, 8), values);
+        } finally {
+            client.delete(null, testKey);
+        }
     }
 
 }

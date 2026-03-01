@@ -24,27 +24,23 @@ import com.aerospike.restclient.ASTestMapper;
 import com.aerospike.restclient.IASTestMapper;
 import com.aerospike.restclient.config.JSONMessageConverter;
 import com.aerospike.restclient.config.MsgPackConverter;
-import org.junit.Assert;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.Stream;
 
-@RunWith(Parameterized.class)
 public class RestClientBatchDeletePolicyTest {
-    private final IASTestMapper mapper;
-
-    @Parameterized.Parameters
-    public static Object[] getParams() {
-        return new Object[]{
-                new JsonBatchDeletePolicyMapper(), new MsgPackBatchDeletePolicyMapper()
-        };
-    }
-
-    public RestClientBatchDeletePolicyTest(IASTestMapper mapper) {
-        this.mapper = mapper;
+    static Stream<Arguments> getParams() {
+        return Stream.of(
+                Arguments.of(new JsonBatchDeletePolicyMapper()),
+                Arguments.of(new MsgPackBatchDeletePolicyMapper())
+        );
     }
 
     @Test
@@ -52,8 +48,9 @@ public class RestClientBatchDeletePolicyTest {
         new BatchDeletePolicy();
     }
 
-    @Test
-    public void testObjectMappedBatchDeleteConstructionStringKey() throws Exception {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testObjectMappedBatchDeleteConstructionStringKey(IASTestMapper mapper) throws Exception {
         Map<String, Object> policyMap = new HashMap<>();
         policyMap.put("filterExp", "a filter");
         policyMap.put("commitLevel", "COMMIT_MASTER");
@@ -64,16 +61,17 @@ public class RestClientBatchDeletePolicyTest {
 
         BatchDeletePolicy mappedBody = (BatchDeletePolicy) mapper.bytesToObject(mapper.objectToBytes(policyMap));
 
-        Assert.assertEquals("a filter", mappedBody.filterExp);
-        Assert.assertEquals(CommitLevel.COMMIT_MASTER, mappedBody.commitLevel);
-        Assert.assertEquals(GenerationPolicy.EXPECT_GEN_EQUAL, mappedBody.generationPolicy);
-        Assert.assertEquals(101, mappedBody.generation);
-        Assert.assertTrue(mappedBody.durableDelete);
-        Assert.assertTrue(mappedBody.sendKey);
+        Assertions.assertEquals("a filter", mappedBody.filterExp);
+        Assertions.assertEquals(CommitLevel.COMMIT_MASTER, mappedBody.commitLevel);
+        Assertions.assertEquals(GenerationPolicy.EXPECT_GEN_EQUAL, mappedBody.generationPolicy);
+        Assertions.assertEquals(101, mappedBody.generation);
+        Assertions.assertTrue(mappedBody.durableDelete);
+        Assertions.assertTrue(mappedBody.sendKey);
     }
 
-    @Test
-    public void testToBatchDeletePolicy() {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void testToBatchDeletePolicy(IASTestMapper mapper) {
         Expression expectedExp = Exp.build(Exp.ge(Exp.bin("a", Exp.Type.INT), Exp.bin("b", Exp.Type.INT)));
         String expectedExpStr = expectedExp.getBase64();
         BatchDeletePolicy restPolicy = new BatchDeletePolicy();
@@ -86,12 +84,12 @@ public class RestClientBatchDeletePolicyTest {
 
         com.aerospike.client.policy.BatchDeletePolicy actualPolicy = restPolicy.toBatchDeletePolicy();
 
-        Assert.assertEquals(expectedExp, actualPolicy.filterExp);
-        Assert.assertEquals(CommitLevel.COMMIT_MASTER, actualPolicy.commitLevel);
-        Assert.assertEquals(GenerationPolicy.EXPECT_GEN_EQUAL, actualPolicy.generationPolicy);
-        Assert.assertEquals(101, actualPolicy.generation);
-        Assert.assertTrue(actualPolicy.durableDelete);
-        Assert.assertTrue(actualPolicy.sendKey);
+        Assertions.assertEquals(expectedExp, actualPolicy.filterExp);
+        Assertions.assertEquals(CommitLevel.COMMIT_MASTER, actualPolicy.commitLevel);
+        Assertions.assertEquals(GenerationPolicy.EXPECT_GEN_EQUAL, actualPolicy.generationPolicy);
+        Assertions.assertEquals(101, actualPolicy.generation);
+        Assertions.assertTrue(actualPolicy.durableDelete);
+        Assertions.assertTrue(actualPolicy.sendKey);
     }
 }
 

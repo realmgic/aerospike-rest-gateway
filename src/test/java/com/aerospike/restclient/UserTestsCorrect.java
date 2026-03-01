@@ -27,46 +27,39 @@ import com.aerospike.restclient.domain.RestClientUserModel;
 import com.aerospike.restclient.util.TLSPolicyBuilder;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.junit.*;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameters;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Assumptions;
+
 import org.msgpack.jackson.dataformat.MessagePackFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.junit4.rules.SpringClassRule;
-import org.springframework.test.context.junit4.rules.SpringMethodRule;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
 import java.util.*;
+import java.util.stream.Stream;
 
+import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@RunWith(Parameterized.class)
 @SpringBootTest
 public class UserTestsCorrect {
 
-    @ClassRule
-    public static final SpringClassRule springClassRule = new SpringClassRule();
-
-    @Rule
-    public final SpringMethodRule springMethodRule = new SpringMethodRule();
-
-    private final RestUserHandler handler;
-
-    @Parameters
-    public static Object[] getParams() {
-        return new Object[]{
-                new JSONRestUserHandler(), new MsgPackRestUserHandler()
-        };
-    }
-
-    public UserTestsCorrect(RestUserHandler handler) {
-        this.handler = handler;
+    static Stream<Arguments> getParams() {
+        return Stream.of(
+                Arguments.of(new JSONRestUserHandler()),
+                Arguments.of(new MsgPackRestUserHandler())
+        );
     }
 
     List<String> createdUsers;
@@ -92,12 +85,12 @@ public class UserTestsCorrect {
 
     private final String endpoint = "/v1/admin/user";
 
-    @BeforeClass
+    @BeforeAll
     public static void okToRun() {
-        Assume.assumeTrue(ASTestUtils.runningWithAuth());
+        Assumptions.assumeTrue(ASTestUtils.runningWithAuth());
     }
 
-    @Before
+    @BeforeEach
     public void setup() throws InterruptedException {
         mockMVC = MockMvcBuilders.webAppContextSetup(wac).build();
         createdUsers = new ArrayList<>();
@@ -118,7 +111,7 @@ public class UserTestsCorrect {
         Thread.sleep(2000);
     }
 
-    @After
+    @AfterEach
     public void tearDown() {
         for (String user : createdUsers) {
             try {
@@ -133,16 +126,18 @@ public class UserTestsCorrect {
         }
     }
 
-    @Test
-    public void getUsers() throws Exception {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void getUsers(RestUserHandler handler) throws Exception {
         /* Get all users and verify that the one we just created is included*/
 
         List<Map<String, Object>> UserList = handler.getUsers(mockMVC, endpoint);
-        Assert.assertTrue(usersListContainsUser(UserList, userName));
+        Assertions.assertTrue(usersListContainsUser(UserList, userName));
     }
 
-    @Test
-    public void createUser() throws Exception {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void createUser(RestUserHandler handler) throws Exception {
         String newUser = "newUser";
         String newPass = "topSecret";
         String[] roles = {Role.ReadWrite, Role.ReadWriteUdf};
@@ -162,22 +157,24 @@ public class UserTestsCorrect {
         policy.password = newPass;
 
         AerospikeClient newClient = new AerospikeClient(policy, ASTestUtils.getHost());
-        Assert.assertTrue(newClient.isConnected());
+        Assertions.assertTrue(newClient.isConnected());
         newClient.close();
 
-        Assert.assertTrue(userHasRoles(newUser, rolesList));
+        Assertions.assertTrue(userHasRoles(newUser, rolesList));
     }
 
-    @Test
-    public void getUser() throws Exception {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void getUser(RestUserHandler handler) throws Exception {
         Map<String, Object> userObj = handler.getUser(mockMVC, endpoint + "/" + userName);
 
-        Assert.assertEquals(userName, userObj.get("name"));
-        Assert.assertTrue(userObjectHasRole(userObj, createdRoles.get(0)));
+        Assertions.assertEquals(userName, userObj.get("name"));
+        Assertions.assertTrue(userObjectHasRole(userObj, createdRoles.get(0)));
     }
 
-    @Test
-    public void deleteUser() throws Exception {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void deleteUser(RestUserHandler handler) throws Exception {
         /* Delete a user we just created and verify that it no longer exists*/
         mockMVC.perform(delete(endpoint + "/" + userName).contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isAccepted());
@@ -190,11 +187,12 @@ public class UserTestsCorrect {
         } catch (AerospikeException e) {
             resultCode = e.getResultCode();
         }
-        Assert.assertEquals(resultCode, ResultCode.INVALID_USER);
+        Assertions.assertEquals(resultCode, ResultCode.INVALID_USER);
     }
 
-    @Test
-    public void patchUser() throws Exception {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void patchUser(RestUserHandler handler) throws Exception {
         String newPassword = "SuperSecret";
 
         handler.patchUser(mockMVC, endpoint + "/" + userName, newPassword);
@@ -207,12 +205,13 @@ public class UserTestsCorrect {
         policy.password = newPassword;
 
         AerospikeClient newClient = new AerospikeClient(policy, ASTestUtils.getHost());
-        Assert.assertTrue(newClient.isConnected());
+        Assertions.assertTrue(newClient.isConnected());
         newClient.close();
     }
 
-    @Test
-    public void grantRoles() throws Exception {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void grantRoles(RestUserHandler handler) throws Exception {
         String[] roles = {Role.ReadWrite, Role.ReadWriteUdf};
         List<String> rolesList = Arrays.asList(roles);
 
@@ -220,20 +219,21 @@ public class UserTestsCorrect {
 
         Thread.sleep(1000);
 
-        Assert.assertTrue(userHasRoles(userName, rolesList));
+        Assertions.assertTrue(userHasRoles(userName, rolesList));
         // Verify that we are adding roles and not replacing
-        Assert.assertTrue(userHasRoles(userName, createdRoles));
+        Assertions.assertTrue(userHasRoles(userName, createdRoles));
     }
 
-    @Test
-    public void deleteRoles() throws Exception {
+    @ParameterizedTest
+    @MethodSource("getParams")
+    public void deleteRoles(RestUserHandler handler) throws Exception {
         String[] deleteRoles = {Role.SysAdmin, Role.Read};
         List<String> rolesList = Arrays.asList(deleteRoles);
 
         handler.revokeRoles(mockMVC, endpoint + "/" + userName + "/role/delete", rolesList);
 
         Thread.sleep(1000);
-        Assert.assertTrue(userDoesNotHaveRoles(userName, rolesList));
+        Assertions.assertTrue(userDoesNotHaveRoles(userName, rolesList));
     }
 
     private boolean usersListContainsUser(List<Map<String, Object>> users, String searchUser) {
