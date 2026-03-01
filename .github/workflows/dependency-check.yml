@@ -54,7 +54,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-dependency-check-
 
-      # Retry on NVD/network flakiness; optional NVD_API_KEY repo secret speeds up CVE updates
+      # Retry on NVD/network flakiness and H2 errors from stale cache (e.g. "old transaction still open", "database has been closed")
       - name: Run OWASP Dependency-Check
         uses: nick-fields/retry@v3
         env:
@@ -63,4 +63,5 @@ jobs:
           max_attempts: 3
           timeout_minutes: 15
           retry_wait_seconds: 45
+          on_retry_command: rm -rf ~/.gradle/dependency-check-data
           command: ./gradlew dependencyCheckAnalyze --no-daemon
